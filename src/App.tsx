@@ -1,19 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
-type CardProps = {
-  title: string;
-  footer?: React.ReactNode;
-  children: React.ReactNode;
-};
-
-const Card: React.FC<CardProps> = ({ title, footer, children }) => (
-  <div className="card">
-    <div className="card-title">{title}</div>
-    <div>{children}</div>
-    {footer && <div className="card-footer">{footer}</div>}
-  </div>
-);
+import Card from "./components/Card";
+import DiceIcon from "./components/DiceIcon";
+import {
+  allowDestroy,
+  computeStartingHeat,
+  costAddDie,
+  costAddSideFor,
+  costAddWinningFaceFor,
+  costAutoBanker,
+  costAutoRoller,
+  intervalMsForAutoRoll,
+  payoutFromDiceCount,
+  rollDice,
+  type Die,
+  type RollResult,
+} from "./game";
 
 function toFixed(num: number, digits = 2) {
   return Number.isFinite(num) ? num.toFixed(digits) : "—";
@@ -23,156 +26,18 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
 }
 
-const DiceIcon: React.FC<{
-  n: number;
-  size?: number;
-  selected?: boolean;
-  lastWin?: boolean;
-  label?: string | number;
-}> = ({ n, size = 56, selected = false, lastWin = false, label }) => {
-  const s = size;
-  const cx = s / 2;
-  const cy = s / 2;
-  const r = s * 0.38;
-  const stroke = selected ? "#34d399" : lastWin ? "#10b981" : "#94a3b8";
-  const strokeWidth = selected ? 3 : 2;
-
-  const makePoints = (k: number) => {
-    const pts: string[] = [];
-    const rot = -Math.PI / 2;
-    for (let i = 0; i < k; i++) {
-      const a = rot + (i * 2 * Math.PI) / k;
-      const x = cx + r * Math.cos(a);
-      const y = cy + r * Math.sin(a);
-      pts.push(`${x},${y}`);
-    }
-    return pts.join(" ");
-  };
-
-  return (
-    <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
-      <rect x={0} y={0} width={s} height={s} rx={12} ry={12} fill="none" stroke="rgba(255,255,255,0.08)" />
-      {n <= 2 ? (
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-      ) : (
-        <polygon points={makePoints(n)} fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-      )}
-      {label != null && (
-        <text
-          x="50%"
-          y="52%"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize={s * 0.42}
-          fontFamily="ui-sans-serif, system-ui"
-          fill="currentColor"
-        >
-          {String(label)}
-        </text>
-      )}
-    </svg>
-  );
-};
-
-interface Die {
-  id: number;
-  sides: number;
-  winningFaces: number;
-}
-
-function costAddDie(k: number) {
-  return 20 * Math.pow(2, Math.max(0, k - 1));
-}
-
-function costAddSideFor(sides: number) {
-  return Math.round(10 + 2 * sides);
-}
-
-function costAddWinningFaceFor(w: number) {
-  return Math.round(20 * Math.pow(1.3, w));
-}
-
-function costAutoRoller(level: number) {
-  return Math.round(50 * Math.pow(1.6, Math.max(0, level)));
-}
-
-function costAutoBanker() {
-  return 60;
-}
-
-function intervalMsForAutoRoll(level: number) {
-  if (level <= 0) return null;
-  const base = 2000 * Math.pow(0.75, level - 1);
-  return Math.max(10, Math.round(base));
-}
-
-function computeStartingHeat(dice: Die[]) {
-  const units = dice.reduce((acc, d) => acc + Math.max(0, d.sides - 2), 0);
-  return 1 + 0.1 * units;
-}
-
-function payoutFromDiceCount(nDice: number) {
-  return 1 + 0.1 * Math.max(0, nDice - 1);
-}
-
-function allowDestroy(nDice: number) {
-  return nDice > 1;
-}
-
-(function runSelfTests() {
-  try {
-    console.assert(costAddDie(1) === 20, "costAddDie(1) should be 20");
-    console.assert(costAddDie(2) === 40, "costAddDie(2) should be 40");
-    console.assert(costAddDie(3) === 80, "costAddDie(3) should be 80");
-
-    const d2: Die[] = [{ id: 1, sides: 2, winningFaces: 1 }];
-    const twoD3: Die[] = [
-      { id: 1, sides: 3, winningFaces: 1 },
-      { id: 2, sides: 3, winningFaces: 1 },
-    ];
-    const d4: Die[] = [{ id: 1, sides: 4, winningFaces: 1 }];
-    console.assert(Math.abs(computeStartingHeat(d2) - 1.0) < 1e-9, "d2 base heat should be 1.0");
-    console.assert(Math.abs(computeStartingHeat(twoD3) - 1.2) < 1e-9, "two d3 base heat should be 1.2");
-    console.assert(Math.abs(computeStartingHeat(d4) - 1.2) < 1e-9, "d4 base heat should be 1.2");
-
-    console.assert(Math.abs(payoutFromDiceCount(1) - 1.0) < 1e-9, "1 die per-win should be 1.0");
-    console.assert(Math.abs(payoutFromDiceCount(3) - 1.2) < 1e-9, "3 dice per-win should be 1.2");
-
-    console.assert(allowDestroy(1) === false, "cannot destroy when only 1 die");
-    console.assert(allowDestroy(2) === true, "can destroy when 2+ dice");
-
-    console.assert(costAddWinningFaceFor(0) === 20, "win cost base should be 20");
-    console.assert(costAddWinningFaceFor(2) > costAddWinningFaceFor(1), "win cost should increase with w");
-
-    const int1 = intervalMsForAutoRoll(1)!;
-    const int3 = intervalMsForAutoRoll(3)!;
-    console.assert(int3 < int1, "auto interval should shrink as level grows");
-    console.assert(intervalMsForAutoRoll(100)! >= 10, "auto interval should be clamped to >=10ms");
-
-    console.assert(intervalMsForAutoRoll(0) === null, "interval should be null when level <= 0");
-    console.assert(intervalMsForAutoRoll(-5) === null, "interval should be null when level <= 0");
-
-    const mix: Die[] = [
-      { id: 1, sides: 3, winningFaces: 1 },
-      { id: 2, sides: 5, winningFaces: 1 },
-    ];
-    console.assert(Math.abs(computeStartingHeat(mix) - 1.4) < 1e-9, "d3+d5 base heat should be 1.4");
-
-    console.assert(costAddSideFor(2) < costAddSideFor(3), "side cost should increase with sides");
-  } catch {
-    // ignore in production
-  }
-})();
+const STARTING_DIE: Die = { id: 1, sides: 2, winningFaces: 1 };
+const INITIAL_LOG = "Ready. Press R to roll, B to bank.";
 
 const App: React.FC = () => {
   const [bank, setBank] = useState(0);
   const [pot, setPot] = useState(0);
   const [streak, setStreak] = useState(0);
 
-  const [dice, setDice] = useState<Die[]>([{ id: 1, sides: 2, winningFaces: 1 }]);
-  const [selectedDieId, setSelectedDieId] = useState<number>(1);
-  const [lastRoll, setLastRoll] = useState<{ value: number; win: boolean; id: number }[]>([]);
-  const [log, setLog] = useState<string[]>(["Ready. Press R to roll, B to bank."]);
+  const [dice, setDice] = useState<Die[]>([{ ...STARTING_DIE }]);
+  const [selectedDieId, setSelectedDieId] = useState<number>(STARTING_DIE.id);
+  const [lastRoll, setLastRoll] = useState<RollResult[]>([]);
+  const [log, setLog] = useState<string[]>([INITIAL_LOG]);
 
   const payoutPerSuccess = useMemo(() => payoutFromDiceCount(dice.length), [dice.length]);
   const startingHeat = useMemo(() => computeStartingHeat(dice), [dice]);
@@ -218,14 +83,7 @@ const App: React.FC = () => {
 
   const roll = useCallback(
     (fromAuto = false) => {
-      let successes = 0;
-      const results: { value: number; win: boolean; id: number }[] = [];
-      for (const d of dice) {
-        const value = 1 + Math.floor(Math.random() * d.sides);
-        const win = value <= d.winningFaces;
-        if (win) successes++;
-        results.push({ value, win, id: d.id });
-      }
+      const { results, successes } = rollDice(dice);
       setLastRoll(results);
 
       if (successes === 0) {
@@ -312,8 +170,8 @@ const App: React.FC = () => {
     setBank(0);
     setPot(0);
     setStreak(0);
-    setDice([{ id: 1, sides: 2, winningFaces: 1 }]);
-    setSelectedDieId(1);
+    setDice([{ ...STARTING_DIE }]);
+    setSelectedDieId(STARTING_DIE.id);
     setLastRoll([]);
     setAutoRollerLevel(0);
     setAutoRollerActive(false);
@@ -332,12 +190,18 @@ const App: React.FC = () => {
   const canAddSide = selected ? selected.sides < 20 : false;
   const canAddWinningFace = selected ? selected.winningFaces < selected.sides - 1 : false;
   const priceSide = selected ? Math.max(1, Math.round(costAddSideFor(selected.sides) * globalPriceScale)) : 0;
-  const priceWin = selected ? Math.max(1, Math.round(costAddWinningFaceFor(selected.winningFaces) * globalPriceScale)) : 0;
+  const priceWin = selected
+    ? Math.max(1, Math.round(costAddWinningFaceFor(selected.winningFaces) * globalPriceScale))
+    : 0;
 
   const priceAutoRoll = Math.max(1, Math.round(costAutoRoller(autoRollerLevel) * globalPriceScale));
   const priceAutoBanker = !autoBankerOwned
     ? Math.max(1, Math.round(costAutoBanker() * globalPriceScale))
     : 0;
+
+  function bumpAddDiePrice() {
+    setAddDieInflation((x) => x * 1.25);
+  }
 
   function buyDie() {
     if (bank < priceDie) {
@@ -346,14 +210,10 @@ const App: React.FC = () => {
     }
     setBank((b) => b - priceDie);
     setDice((ds) => {
-      const nextId = (ds.reduce((m, d) => Math.max(m, d.id), 0) + 1) || 1;
+      const nextId = (ds.reduce((m, d) => Math.max(m, d.id), 0) + 1) || STARTING_DIE.id;
       return [...ds, { id: nextId, sides: 2, winningFaces: 1 }];
     });
     appendLog(`Bought +1 die for ${priceDie}. New die starts as d2 with 1 winning face.`);
-  }
-
-  function bumpAddDiePrice() {
-    setAddDieInflation((x) => x * 1.25);
   }
 
   function buySide() {
@@ -653,9 +513,15 @@ const App: React.FC = () => {
             </div>
             <div className="app-header" style={{ gap: "8px" }}>
               <div className="die-info-meta" style={{ display: "grid", gap: "6px" }}>
-                <div>Owned: <strong>{autoRollerLevel > 0 ? "Yes" : "No"}</strong></div>
-                <div>Level: <strong>{Math.max(0, autoRollerLevel)}</strong></div>
-                <div>Interval: <strong>{autoRollIntervalMs ? `${autoRollIntervalMs} ms` : "—"}</strong></div>
+                <div>
+                  Owned: <strong>{autoRollerLevel > 0 ? "Yes" : "No"}</strong>
+                </div>
+                <div>
+                  Level: <strong>{Math.max(0, autoRollerLevel)}</strong>
+                </div>
+                <div>
+                  Interval: <strong>{autoRollIntervalMs ? `${autoRollIntervalMs} ms` : "—"}</strong>
+                </div>
               </div>
               <div className="actions" style={{ gap: "8px" }}>
                 <button
@@ -684,7 +550,9 @@ const App: React.FC = () => {
             </div>
             <div className="app-header" style={{ gap: "8px" }}>
               <div className="die-info-meta" style={{ display: "grid", gap: "6px" }}>
-                <div>Owned: <strong>{autoBankerOwned ? "Yes" : "No"}</strong></div>
+                <div>
+                  Owned: <strong>{autoBankerOwned ? "Yes" : "No"}</strong>
+                </div>
                 <label>
                   Target:&nbsp;
                   <input
