@@ -3,11 +3,11 @@
   "homepage": "https://earnest-williams.github.io/Pressure-Luck",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://earnest-williams.github.io/Pressure-Luck",
   "dependencies": {
     "@types/node": "^20.12.12",
     "@types/react": "^18.2.46",
     "@types/react-dom": "^18.2.19",
+    "gh-pages": "^6.3.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "^5.0.1",
@@ -36,7 +36,5 @@
       "last 1 safari version"
     ]
   },
-  "devDependencies": {
-    "gh-pages": "^6.3.0"
-  }
+  "devDependencies": {}
 }
