@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Pressure Luck web game",
+  "homepage": ".",
   "dependencies": {
     "@types/node": "^20.12.12",
     "@types/react": "^18.2.46",

@@ -16,7 +16,7 @@ import {
   rollDice,
   type Die,
   type RollResult,
-} from "./game";
+} from "../game";
 
 function toFixed(num: number, digits = 2) {
   return Number.isFinite(num) ? num.toFixed(digits) : "—";
