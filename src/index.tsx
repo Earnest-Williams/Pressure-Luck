@@ -156,7 +156,7 @@ function allowDestroy(nDice: number) { return nDice > 1; }
 })();
 
 // ---------------- Component ----------------
-function App() {
+export default function App() {
   // Bank/pot core
   const [bank, setBank] = useState(0);
   const [pot, setPot] = useState(0);
