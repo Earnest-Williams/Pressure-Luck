@@ -231,6 +231,8 @@
 
     // Timers
     let autoTimer = null; // interval id
+    let autoResumeTimer = null; // timeout id for pause/resume
+    let autoPausedUntil = 0; // timestamp in ms
     let interestTimer = null; // 1s compounding
 
     // ===== Derived =====
@@ -403,7 +405,28 @@
       state.globalPriceScale = Math.max(0.0001, state.globalPriceScale * 0.5); state.destroyedSides += die.sides; state.dice = state.dice.filter(d=>d.id!==id); if(state.selectedDieId===id){ state.selectedDieId = state.dice.length ? state.dice[0].id : -1; } state.armedDestroyId = null; addLog(`Destroyed die #${id} (d${die.sides}). Prices halved; interest +${(die.sides*0.1).toFixed(1)}%/tick.`); render(); }
 
     // ===== Timers =====
-    function refreshAutoTimer(){ if(autoTimer){ clearInterval(autoTimer); autoTimer=null; } const ms = autoIntervalMs(state.autoRollerLevel); if(state.autoRollerActive && ms){ autoTimer = setInterval(()=>roll(true), ms); } }
+    function refreshAutoTimer(){
+      if(autoTimer){ clearInterval(autoTimer); autoTimer=null; }
+      if(autoResumeTimer){ clearTimeout(autoResumeTimer); autoResumeTimer=null; }
+      const ms = autoIntervalMs(state.autoRollerLevel);
+      if(!state.autoRollerActive || !ms){ autoPausedUntil = 0; return; }
+      const now = Date.now();
+      if(now < autoPausedUntil){
+        autoResumeTimer = setTimeout(()=>{ autoResumeTimer=null; refreshAutoTimer(); }, Math.max(0, autoPausedUntil-now));
+        return;
+      }
+      autoPausedUntil = 0;
+      autoTimer = setInterval(()=>roll(true), ms);
+    }
+
+    function pauseAutoTemporarily(duration=350){
+      if(!state.autoRollerActive) return;
+      const now = Date.now();
+      autoPausedUntil = Math.max(autoPausedUntil, now + Math.max(0, duration));
+      if(autoTimer){ clearInterval(autoTimer); autoTimer=null; }
+      if(autoResumeTimer){ clearTimeout(autoResumeTimer); autoResumeTimer=null; }
+      autoResumeTimer = setTimeout(()=>{ autoResumeTimer=null; refreshAutoTimer(); }, Math.max(0, autoPausedUntil - Date.now()));
+    }
     function ensureInterestTimer(){ if(interestTimer) return; interestTimer = setInterval(()=>{ if(state.destroyedSides>0){ state.bank += state.bank * state.destroyedSides * 0.001; render(); } }, 1000); }
 
     // ===== Events =====
@@ -423,7 +446,12 @@
     document.getElementById('abTarget').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'0',10); state.autoBankerTarget = clamp(isNaN(v)?0:v, 1, 1_000_000); render(); });
 
     // Delegation: dice list
-    document.getElementById('diceList').addEventListener('click', (e)=>{
+    const diceListEl = document.getElementById('diceList');
+
+    diceListEl.addEventListener('pointerdown', ()=>pauseAutoTemporarily(450));
+
+    diceListEl.addEventListener('click', (e)=>{
+      pauseAutoTemporarily(450);
       const destroyEl = e.target.closest('[data-destroy]');
       if(destroyEl){
         const id = parseInt(destroyEl.getAttribute('data-destroy'),10);
