@@ -1,0 +1,256 @@
+:root {
+  color-scheme: dark;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #1f2937 0%, #0f172a 55%, #020617 100%);
+  color: #e2e8f0;
+}
+
+.app {
+  min-height: 100vh;
+  padding: 32px 20px 48px;
+}
+
+.app-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.card {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45);
+  backdrop-filter: blur(12px);
+}
+
+.card-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(203, 213, 225, 0.72);
+}
+
+.card-footer {
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+  padding-top: 12px;
+  font-size: 0.85rem;
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.stats-grid,
+.upgrade-grid,
+.automation-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.upgrade-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.automation-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.stat-value {
+  font-size: 2.25rem;
+  font-weight: 700;
+}
+
+.stat-note {
+  font-size: 0.8rem;
+  color: rgba(226, 232, 240, 0.65);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.button {
+  border-radius: 14px;
+  border: 1px solid transparent;
+  padding: 11px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.button-primary {
+  background: #34d399;
+  color: #022c22;
+}
+
+.button-primary:not(:disabled):hover {
+  background: #2fb487;
+}
+
+.button-secondary {
+  background: #f59e0b;
+  color: #361a03;
+}
+
+.button-secondary:not(:disabled):hover {
+  background: #d98c07;
+}
+
+.button-outline {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.4);
+  color: rgba(226, 232, 240, 0.95);
+}
+
+.button-outline:not(:disabled):hover {
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.button-outline.danger {
+  border-color: rgba(248, 113, 113, 0.6);
+  color: #fecaca;
+}
+
+.button-outline.danger:not(:disabled):hover {
+  background: rgba(248, 113, 113, 0.15);
+}
+
+.dice-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.die-tile {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.6);
+  cursor: pointer;
+  flex: 1 1 280px;
+  transition: border 0.2s ease, background 0.2s ease;
+}
+
+.die-tile:hover {
+  border-color: rgba(52, 211, 153, 0.65);
+}
+
+.die-tile.selected {
+  border-color: rgba(52, 211, 153, 0.9);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.die-info-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.die-info-meta {
+  font-size: 0.8rem;
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.destroy-button {
+  margin-top: 8px;
+}
+
+kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  font-size: 0.75rem;
+  font-family: inherit;
+}
+
+.log-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: rgba(226, 232, 240, 0.78);
+}
+
+.rules {
+  font-size: 0.8rem;
+  color: rgba(148, 163, 184, 0.85);
+  line-height: 1.5;
+}
+
+.target-input {
+  width: 96px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.7);
+  color: inherit;
+}
+
+.target-input:disabled {
+  opacity: 0.5;
+}
+
+@media (max-width: 640px) {
+  .app {
+    padding: 24px 16px 40px;
+  }
+
+  .app-title {
+    font-size: 1.4rem;
+  }
+
+  .die-tile {
+    flex-basis: 100%;
+  }
+}
