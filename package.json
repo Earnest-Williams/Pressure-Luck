@@ -2,6 +2,7 @@
   "name": "my-app",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://earnest-williams.github.io/Pressure-Luck",
   "dependencies": {
     "@types/node": "^20.12.12",
     "@types/react": "^18.2.46",
