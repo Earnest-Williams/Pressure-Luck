@@ -1,433 +1,457 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Push Your Luck — Faces & Dice</title>
-    <!-- Tailwind (CDN) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React 18 (UMD) -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Babel Standalone for in-browser TSX/JSX transpile (dev only) -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  </head>
-  <body class="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 text-slate-100">
-    <div id="root"></div>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Push‑Your‑Luck — Faces & Dice (Plain JS)</title>
+  <style>
+    :root{
+      --bg1:#0f172a;/* slate-900 */
+      --bg2:#0b1220;/* slate-950 */
+      --text:#e2e8f0;/* slate-100 */
+      --muted:#cbd5e1;/* slate-300 */
+      --muted2:rgba(255,255,255,.7);
+      --border:rgba(255,255,255,.1);
+      --highlight:#34d399;/* emerald-400 */
+      --accent:#10b981;/* emerald-500 */
+      --accent2:#f59e0b;/* amber-500 */
+      --danger:#f43f5e;/* rose-500 */
+      --shadow:0 10px 15px -3px rgba(0,0,0,.2),0 4px 6px -4px rgba(0,0,0,.2);
+    }
+    html,body{height:100%;}
+    body{margin:0;color:var(--text);background:linear-gradient(to bottom,var(--bg1),var(--bg2));font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans","Apple Color Emoji","Segoe UI Emoji";}
+    .container{max-width:1100px;margin:0 auto;padding:24px;}
+    h1{font-size:22px;margin:0;font-weight:600;letter-spacing:.2px}
+    .row{display:flex;gap:12px;flex-wrap:wrap;}
+    .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+    @media (max-width:900px){.grid-3{grid-template-columns:1fr}}
+    .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    @media (max-width:900px){.grid-2{grid-template-columns:1fr}}
+    .card{border:1px solid var(--border);background:rgba(255,255,255,.05);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+    .card .title{color:var(--muted2);text-transform:uppercase;letter-spacing:.08em;font-size:12px;margin-bottom:8px}
+    .btn{border:1px solid var(--border);border-radius:14px;padding:10px 14px;background:transparent;color:var(--text);cursor:pointer}
+    .btn:hover{background:rgba(255,255,255,.06)}
+    .btn[disabled]{opacity:.5;cursor:not-allowed}
+    .btn-primary{background:var(--accent);border-color:var(--accent);color:#0f172a;font-weight:600}
+    .btn-primary:hover{filter:brightness(1.05)}
+    .btn-warn{border-color:var(--danger);color:#ffe4e6}
+    .kbd{border:1px solid var(--border);border-radius:6px;padding:2px 6px}
+    .pill{display:inline-block;border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-size:12px}
+    .muted{color:var(--muted2)}
+    .dice-list{display:flex;flex-wrap:wrap;gap:12px}
+    .die-tile{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:12px;padding:10px 12px 10px 10px}
+    .die-tile.selected{border-color:var(--highlight);background:rgba(16,185,129,.12)}
+    .destroy{display:inline-block;border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-size:12px}
+    .destroy.active{border-color:#fecdd3;background:rgba(244,63,94,.2);color:#fee2e2}
+    .destroy.disabled{opacity:.4;pointer-events:none}
+    svg{display:block}
+    .log{list-style:none;margin:0;padding:0}
+    .log li{font-size:14px;color:var(--muted2);margin:4px 0}
+    input[type=number]{width:110px;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,.35);color:var(--text);padding:6px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="row" style="justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h1>Push‑Your‑Luck — Per‑Die Upgrades + Automation</h1>
+      <button id="btnReset" class="btn">Reset</button>
+    </header>
 
-    <script type="text/babel" data-presets="typescript,react">
-      // Pull hooks from global React (UMD)
-      const { useMemo, useState, useEffect, useRef } = React;
-
-      /** UI helpers **/
-      const Card = ({ title, children, footer }) => (
-        <div className="rounded-2xl shadow-lg p-4 bg-white/5 border border-white/10">
-          <div className="text-sm uppercase tracking-wide text-white/70 mb-2">{title}</div>
-          <div>{children}</div>
-          {footer && <div className="mt-3 pt-3 border-t border-white/10 text-sm">{footer}</div>}
+    <section class="grid-3" style="margin-bottom:16px">
+      <div class="card">
+        <div class="title">Bank</div>
+        <div id="bank" style="font-size:32px;font-weight:700">0</div>
+        <div class="muted" style="font-size:12px;margin-top:6px">Interest <span id="interestRate">+0.0</span>%/tick • Price scale ×<span id="priceScale">1.00</span></div>
+      </div>
+      <div class="card">
+        <div class="title">Pot (at risk)</div>
+        <div id="pot" style="font-size:32px;font-weight:700">0</div>
+        <div class="muted" style="font-size:12px;margin-top:6px">Heat ×<span id="heatRaw">1.00</span> • Payout ×<span id="heatPay">1</span> • Streak <span id="streak">0</span></div>
+      </div>
+      <div class="card">
+        <div class="title">Current Setup</div>
+        <div style="font-size:14px">
+          <div style="margin-bottom:6px">Dice: <span id="diceCount" style="font-weight:600">1</span></div>
+          <div class="grid-2" style="row-gap:6px">
+            <div>Selected die</div><div style="text-align:right;font-weight:600" id="selectedStats">#1 — d2, 1 winning</div>
+            <div>Base heat</div><div style="text-align:right;font-weight:600">×<span id="baseHeat">1.00</span></div>
+            <div>Base per‑win</div><div style="text-align:right;font-weight:600">×<span id="perWin">1.00</span></div>
+            <div>Bust chance (roll)</div><div style="text-align:right;font-weight:600"><span id="bustPct">0.00</span>%</div>
+            <div>Expected successes</div><div style="text-align:right;font-weight:600"><span id="expSucc">0.00</span></div>
+          </div>
+          <div class="muted" style="font-size:12px;margin-top:8px">Press <span class="kbd">R</span> to Roll, <span class="kbd">B</span> to Bank</div>
         </div>
-      );
+      </div>
+    </section>
 
-      const toFixed = (num, digits = 2) => (Number.isFinite(num) ? num.toFixed(digits) : "—");
-      const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+    <section class="row" style="margin-bottom:16px">
+      <button id="btnRoll" class="btn btn-primary">Roll</button>
+      <button id="btnBank" class="btn" style="background:var(--accent2);border-color:var(--accent2);color:#0f172a;font-weight:600">Bank</button>
+    </section>
 
-      // Wireframe coin/die icon
-      const DiceIcon = ({ n, size = 56, selected = false, lastWin = false, label }) => {
-        const s = size; const cx = s/2, cy = s/2; const r = s * 0.38;
-        const stroke = selected ? "#34d399" : lastWin ? "#10b981" : "#94a3b8";
-        const strokeWidth = selected ? 3 : 2;
-        const makePoints = (k) => {
-          const pts = []; const rot = -Math.PI/2;
-          for (let i=0; i<k; i++) { const a = rot + (i * 2 * Math.PI) / k; const x = cx + r*Math.cos(a); const y = cy + r*Math.sin(a); pts.push(`${x},${y}`); }
-          return pts.join(" ");
-        };
-        return (
-          <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`} className="shrink-0">
-            <rect x={0} y={0} width={s} height={s} rx={12} ry={12} fill="none" stroke="rgba(255,255,255,0.08)" />
-            {n <= 2 ? (
-              <circle cx={cx} cy={cy} r={r} fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-            ) : (
-              <polygon points={makePoints(n)} fill="none" stroke={stroke} strokeWidth={strokeWidth} />
-            )}
-            {label != null && (
-              <text x="50%" y="52%" textAnchor="middle" dominantBaseline="middle" fontSize={s * 0.42}
-                fontFamily="ui-sans-serif, system-ui" fill="currentColor">{String(label)}</text>
-            )}
-          </svg>
-        );
-      };
+    <section class="card" style="margin-bottom:16px">
+      <div class="title">Dice & Last Roll (click a die to select)</div>
+      <div id="diceList" class="dice-list"></div>
+    </section>
 
-      /** Economics **/
-      const costAddDie = (k) => 20 * Math.pow(2, Math.max(0, k - 1));
-      const costAddSideFor = (sides) => Math.round(10 + 2 * sides);
-      const costAddWinningFaceFor = (w) => Math.round(20 * Math.pow(1.3, w));
-      const costAutoRoller = (level) => Math.round(50 * Math.pow(1.6, Math.max(0, level)));
-      const costAutoBanker = () => 60;
+    <section class="grid-3" style="margin-bottom:16px">
+      <div class="card">
+        <div class="title">Add a Die</div>
+        <div class="muted" style="font-size:14px;margin-bottom:8px">New die starts as d2 with 1 winning face.</div>
+        <div class="row" style="justify-content:space-between;align-items:flex-end">
+          <div>
+            <div style="font-size:20px;font-weight:600"><span id="diceCountNow">1</span> → <span id="diceCountNext">2</span></div>
+            <div class="muted" style="font-size:14px">Cost: <span id="costDie">20</span></div>
+          </div>
+          <button id="btnBuyDie" class="btn">Buy</button>
+        </div>
+      </div>
 
-      const intervalMsForAutoRoll = (level) => {
-        if (level <= 0) return null;
-        const base = 2000 * Math.pow(0.75, level - 1);
-        return Math.max(10, Math.round(base));
-      };
+      <div class="card">
+        <div class="title">Add a Side (selected die)</div>
+        <div class="muted" style="font-size:14px;margin-bottom:8px">Increase sides on the selected die.</div>
+        <div class="row" style="justify-content:space-between;align-items:flex-end">
+          <div>
+            <div style="font-size:20px;font-weight:600">d<span id="selSides">2</span> → d<span id="selSidesNext">3</span></div>
+            <div class="muted" style="font-size:14px">Cost: <span id="costSide">12</span></div>
+          </div>
+          <button id="btnBuySide" class="btn">Buy</button>
+        </div>
+      </div>
 
-      const computeStartingHeat = (dice) => 1 + 0.1 * dice.reduce((acc, d) => acc + Math.max(0, d.sides - 2), 0);
-      const payoutFromDiceCount = (nDice) => 1 + 0.1 * Math.max(0, nDice - 1);
-      const allowDestroy = (nDice) => nDice > 1;
+      <div class="card">
+        <div class="title">Add a Winning Face (selected die)</div>
+        <div class="muted" style="font-size:14px;margin-bottom:8px">Max is N−1 for that die.</div>
+        <div class="row" style="justify-content:space-between;align-items:flex-end">
+          <div>
+            <div style="font-size:20px;font-weight:600"><span id="selWin">1</span>/<span id="selSides2">2</span> → <span id="selWinNext">1</span>/<span id="selSides3">2</span></div>
+            <div class="muted" style="font-size:14px">Cost: <span id="costWin">20</span></div>
+          </div>
+          <button id="btnBuyWin" class="btn">Buy</button>
+        </div>
+      </div>
+    </section>
 
-      /** Self-tests (console) **/
-      (function runSelfTests(){
-        try {
-          console.assert(costAddDie(1) === 20, "costAddDie(1) should be 20");
-          console.assert(costAddDie(2) === 40, "costAddDie(2) should be 40");
-          console.assert(costAddDie(3) === 80, "costAddDie(3) should be 80");
-          const d2 = [{ id:1, sides:2, winningFaces:1 }];
-          const twoD3 = [{ id:1, sides:3, winningFaces:1 }, { id:2, sides:3, winningFaces:1 }];
-          const d4 = [{ id:1, sides:4, winningFaces:1 }];
-          console.assert(Math.abs(computeStartingHeat(d2) - 1.0) < 1e-9, "d2 base heat should be 1.0");
-          console.assert(Math.abs(computeStartingHeat(twoD3) - 1.2) < 1e-9, "two d3 base heat should be 1.2");
-          console.assert(Math.abs(computeStartingHeat(d4) - 1.2) < 1e-9, "d4 base heat should be 1.2");
-          console.assert(Math.abs(payoutFromDiceCount(1) - 1.0) < 1e-9, "1 die per-win should be 1.0");
-          console.assert(Math.abs(payoutFromDiceCount(3) - 1.2) < 1e-9, "3 dice per-win should be 1.2");
-          console.assert(allowDestroy(1) === false, "cannot destroy when only 1 die");
-          console.assert(allowDestroy(2) === true, "can destroy when 2+ dice");
-          console.assert(costAddWinningFaceFor(0) === 20, "win cost base should be 20");
-          console.assert(costAddWinningFaceFor(2) > costAddWinningFaceFor(1), "win cost should increase with w");
-          const int1 = intervalMsForAutoRoll(1);
-          const int3 = intervalMsForAutoRoll(3);
-          console.assert(int3 < int1, "auto interval should shrink as level grows");
-          console.assert(intervalMsForAutoRoll(100) >= 10, "auto interval should be clamped to >=10ms");
-          const mix = [{ id:1, sides:3, winningFaces:1 }, { id:2, sides:5, winningFaces:1 }];
-          console.assert(Math.abs(computeStartingHeat(mix) - 1.4) < 1e-9, "d3+d5 base heat should be 1.4");
-          console.assert(costAddSideFor(2) < costAddSideFor(3), "side cost should increase with sides");
-        } catch {}
-      })();
+    <section class="grid-2" style="margin-bottom:16px">
+      <div class="card">
+        <div class="title">Auto Roller</div>
+        <div class="muted" style="font-size:14px;margin-bottom:10px">Automatically rolls at intervals. Upgrade to reduce the interval. Speed scales indefinitely.</div>
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div>
+            <div style="font-size:14px">Owned: <span id="arOwned" style="font-weight:600">No</span></div>
+            <div style="font-size:14px">Level: <span id="arLevel" style="font-weight:600">0</span></div>
+            <div style="font-size:14px">Interval: <span id="arInterval" style="font-weight:600">—</span></div>
+          </div>
+          <div class="row">
+            <button id="btnBuyAR" class="btn">Buy/Upgrade (<span id="costAR">50</span>)</button>
+            <button id="btnToggleAR" class="btn">Start</button>
+          </div>
+        </div>
+      </div>
 
-      /** App **/
-      function App(){
-        const [bank, setBank] = useState(0);
-        const [pot, setPot] = useState(0);
-        const [streak, setStreak] = useState(0);
+      <div class="card">
+        <div class="title">Auto Banker</div>
+        <div class="muted" style="font-size:14px;margin-bottom:10px">Automatically banks when the pot reaches the target value. Price is fixed; affected by price reductions.</div>
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div>
+            <div style="font-size:14px">Owned: <span id="abOwned" style="font-weight:600">No</span></div>
+            <div style="font-size:14px">Target: <input id="abTarget" type="number" min="1" step="1" value="20" disabled></div>
+          </div>
+          <div class="row">
+            <button id="btnBuyAB" class="btn">Buy (<span id="costAB">60</span>)</button>
+            <button id="btnToggleAB" class="btn">Enable</button>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        const [dice, setDice] = useState([{ id:1, sides:2, winningFaces:1 }]);
-        const [selectedDieId, setSelectedDieId] = useState(1);
-        const [lastRoll, setLastRoll] = useState([]);
-        const [log, setLog] = useState(["Ready. Press R to roll, B to bank."]);
+    <section class="card">
+      <div class="title">Log</div>
+      <ul id="log" class="log"></ul>
+    </section>
 
-        const payoutPerSuccess = useMemo(() => payoutFromDiceCount(dice.length), [dice.length]);
-        const startingHeat = useMemo(() => computeStartingHeat(dice), [dice]);
-        const heatRaw = startingHeat + 0.05 * streak;
-        const heatPay = Math.floor(heatRaw);
-        const bustProb = useMemo(() => dice.reduce((acc, d) => acc * (1 - d.winningFaces / d.sides), 1), [dice]);
-        const expectedSuccesses = useMemo(() => dice.reduce((acc, d) => acc + d.winningFaces / d.sides, 0), [dice]);
+    <p class="muted" style="font-size:12px;margin-top:12px">
+      Rules: If at least one die shows a winning face, you add to the pot and may roll again or bank; if none win, you bust and lose the pot.
+      Add a Die starts at 20 and doubles each extra die; any non‑die purchase increases future Add‑a‑Die price by +25% (multiplicative).
+      Starting heat adds +0.1 per side above 2 on each die; streak adds +0.05 per success. Only whole‑number heat levels (×2, ×3, …) multiply payout.
+      Base per‑win payout increases by +0.1 for each additional die. Destroying a die halves all current buy prices and adds +0.1%/tick interest per side of the destroyed die.
+    </p>
+  </div>
 
-        const [autoRollerLevel, setAutoRollerLevel] = useState(0);
-        const [autoRollerActive, setAutoRollerActive] = useState(false);
-        const autoRollIntervalMs = intervalMsForAutoRoll(autoRollerLevel);
+  <script>
+    // ===== Helpers =====
+    const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+    const tf = (n, d=2) => (Number.isFinite(n) ? n.toFixed(d) : '—');
 
-        const [autoBankerOwned, setAutoBankerOwned] = useState(false);
-        const [autoBankerActive, setAutoBankerActive] = useState(false);
-        const [autoBankTarget, setAutoBankTarget] = useState(20);
+    // Costs & math
+    const costAddDie = (k) => 20 * Math.pow(2, Math.max(0, k-1));
+    const costAddSideFor = (sides) => Math.round(10 + 2 * sides);
+    const costAddWinningFaceFor = (w) => Math.round(20 * Math.pow(1.3, Math.max(0,w)));
+    const costAutoRoller = (level) => Math.round(50 * Math.pow(1.6, Math.max(0, level)));
+    const costAutoBanker = () => 60;
 
-        const [addDieInflation, setAddDieInflation] = useState(1);
-        const [globalPriceScale, setGlobalPriceScale] = useState(1);
-        const [destroyedSides, setDestroyedSides] = useState(0);
+    const autoIntervalMs = (level) => level<=0 ? null : Math.max(10, Math.round(2000 * Math.pow(0.75, level-1)));
 
-        const [armedDestroyId, setArmedDestroyId] = useState(null);
-        const armTimer = useRef(null);
-        useEffect(() => () => { if (armTimer.current) { clearTimeout(armTimer.current); armTimer.current = null; } }, []);
+    const computeStartingHeat = (dice) => 1 + 0.1 * dice.reduce((a,d)=>a + Math.max(0, d.sides-2), 0);
+    const payoutFromDiceCount = (nDice) => 1 + 0.1 * Math.max(0, nDice-1);
+    const allowDestroy = (nDice) => nDice > 1;
 
-        useEffect(() => {
-          const handler = (e) => {
-            if (e.key.toLowerCase() === 'r') { e.preventDefault(); roll(); }
-            else if (e.key.toLowerCase() === 'b') { e.preventDefault(); bankNow(); }
-          };
-          window.addEventListener('keydown', handler);
-          return () => window.removeEventListener('keydown', handler);
-        }, [dice, pot, streak, autoBankerActive, autoBankTarget, autoBankerOwned]);
+    // SVG icon (coin for n<=2, n-gon otherwise)
+    function diceIconSVG(n, label, selected, lastWin){
+      const s=56, cx=s/2, cy=s/2, r=s*0.38;
+      const stroke = selected ? '#34d399' : (lastWin ? '#10b981' : '#94a3b8');
+      const sw = selected ? 3 : 2;
+      const rect = `<rect x="0" y="0" width="${s}" height="${s}" rx="12" ry="12" fill="none" stroke="rgba(255,255,255,.08)"/>`;
+      const shape = (n<=2)
+        ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${stroke}" stroke-width="${sw}"/>`
+        : `<polygon points="${(function(){const rot=-Math.PI/2;const pts=[];for(let i=0;i<n;i++){const a=rot+(i*2*Math.PI)/n;pts.push(`${cx + r*Math.cos(a)},${cy + r*Math.sin(a)}`)}return pts.join(' ')}())}" fill="none" stroke="${stroke}" stroke-width="${sw}"/>`;
+      const lab = label!=null ? `<text x="50%" y="52%" text-anchor="middle" dominant-baseline="middle" font-size="${s*0.42}" font-family="ui-sans-serif, system-ui" fill="currentColor">${label}</text>` : '';
+      return `<svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">${rect}${shape}${lab}</svg>`;
+    }
 
-        useEffect(() => {
-          if (!autoRollerActive || !autoRollIntervalMs) return;
-          const id = setInterval(() => roll(true), autoRollIntervalMs);
-          return () => clearInterval(id);
-        }, [autoRollerActive, autoRollIntervalMs, dice, pot, streak, autoBankerActive, autoBankTarget, autoBankerOwned]);
+    // ===== State =====
+    const state = {
+      bank: 0,
+      pot: 0,
+      streak: 0,
+      dice: [{ id:1, sides:2, winningFaces:1 }],
+      selectedDieId: 1,
+      lastRoll: [], // {id,value,win}
+      log: ["Ready. Press R to roll, B to bank."],
+      autoRollerLevel: 0,
+      autoRollerActive: false,
+      autoBankerOwned: false,
+      autoBankerActive: false,
+      autoBankTarget: 20,
+      addDieInflation: 1,
+      globalPriceScale: 1,
+      destroyedSides: 0,
+      armedDestroyId: null,
+    };
 
-        useEffect(() => {
-          if (destroyedSides <= 0) return;
-          const id = setInterval(() => setBank(b => b + b * destroyedSides * 0.001), 1000);
-          return () => clearInterval(id);
-        }, [destroyedSides]);
+    // Timers
+    let autoTimer = null; // interval id
+    let interestTimer = null; // 1s compounding
 
-        const appendLog = (s) => setLog(prev => [s, ...prev.slice(0, 7)]);
+    // ===== Derived =====
+    function derived(){
+      const payoutPerSuccess = payoutFromDiceCount(state.dice.length);
+      const startingHeat = computeStartingHeat(state.dice);
+      const heatRaw = startingHeat + 0.05 * state.streak;
+      const heatPay = Math.floor(heatRaw);
+      const bustProb = state.dice.reduce((acc,d)=>acc * (1 - d.winningFaces/d.sides), 1);
+      const expectedSuccesses = state.dice.reduce((acc,d)=>acc + d.winningFaces/d.sides, 0);
 
-        function roll(fromAuto = false){
-          let successes = 0; const results = [];
-          for (const d of dice) {
-            const v = 1 + Math.floor(Math.random() * d.sides);
-            const win = v <= d.winningFaces; if (win) successes++;
-            results.push({ value: v, win, id: d.id });
-          }
-          setLastRoll(results);
-          if (successes === 0) { if (pot > 0) appendLog(`Bust. Lost pot of ${pot}.`); setPot(0); setStreak(0); return; }
-          const payMult = Math.max(1, heatPay);
-          const gain = Math.round(successes * payoutPerSuccess * payMult);
-          const newPot = pot + gain;
-          if (autoBankerOwned && autoBankerActive && newPot >= autoBankTarget) {
-            setBank(b => b + newPot); setPot(0); setStreak(0);
-            appendLog(`Auto-banked ${newPot} (target ${autoBankTarget}+).${fromAuto ? ' [auto-roll]' : ''}`);
-          } else {
-            setPot(newPot); setStreak(s => s + 1);
-            appendLog(`Success: ${successes}/${dice.length} wins. +${gain} to pot.${fromAuto ? ' [auto-roll]' : ''}`);
-          }
-        }
+      const priceDie = Math.max(1, Math.round(costAddDie(state.dice.length) * state.addDieInflation * state.globalPriceScale));
+      const selected = state.dice.find(d=>d.id===state.selectedDieId) || state.dice[0];
+      const canAddSide = !!selected && selected.sides < 20;
+      const canAddWinningFace = !!selected && selected.winningFaces < selected.sides - 1;
+      const priceSide = selected ? Math.max(1, Math.round(costAddSideFor(selected.sides) * state.globalPriceScale)) : 0;
+      const priceWin = selected ? Math.max(1, Math.round(costAddWinningFaceFor(selected.winningFaces) * state.globalPriceScale)) : 0;
+      const priceAR = Math.max(1, Math.round(costAutoRoller(state.autoRollerLevel) * state.globalPriceScale));
+      const priceAB = !state.autoBankerOwned ? Math.max(1, Math.round(costAutoBanker() * state.globalPriceScale)) : 0;
+      const arMs = autoIntervalMs(state.autoRollerLevel);
+      return {payoutPerSuccess, startingHeat, heatRaw, heatPay, bustProb, expectedSuccesses, priceDie, selected, canAddSide, canAddWinningFace, priceSide, priceWin, priceAR, priceAB, arMs};
+    }
 
-        function bankNow(){ if (pot <= 0) { appendLog('Nothing to bank.'); return; } setBank(b => b + pot); appendLog(`Banked ${pot}.`); setPot(0); setStreak(0); }
+    // ===== Render =====
+    function render(){
+      const d = derived();
+      // Top panels
+      document.getElementById('bank').textContent = Math.floor(state.bank);
+      document.getElementById('interestRate').textContent = (state.destroyedSides*0.1).toFixed(1);
+      document.getElementById('priceScale').textContent = (state.globalPriceScale).toFixed(2);
 
-        function resetGame(){
-          setBank(0); setPot(0); setStreak(0);
-          setDice([{ id:1, sides:2, winningFaces:1 }]);
-          setSelectedDieId(1); setLastRoll([]);
-          setAutoRollerLevel(0); setAutoRollerActive(false);
-          setAutoBankerOwned(false); setAutoBankerActive(false); setAutoBankTarget(20);
-          setAddDieInflation(1); setGlobalPriceScale(1); setDestroyedSides(0);
-          setLog(['Reset to one coin (d2) with one winning face per-die.']);
-        }
+      document.getElementById('pot').textContent = state.pot;
+      document.getElementById('heatRaw').textContent = tf(d.heatRaw,2);
+      document.getElementById('heatPay').textContent = Math.max(1, d.heatPay);
+      document.getElementById('streak').textContent = state.streak;
 
-        const priceDie = Math.max(1, Math.round(costAddDie(dice.length) * addDieInflation * globalPriceScale));
-        const selected = dice.find(d => d.id === selectedDieId) || dice[0];
-        const canAddSide = selected ? selected.sides < 20 : false;
-        const canAddWinningFace = selected ? selected.winningFaces < selected.sides - 1 : false;
-        const priceSide = selected ? Math.max(1, Math.round(costAddSideFor(selected.sides) * globalPriceScale)) : 0;
-        const priceWin = selected ? Math.max(1, Math.round(costAddWinningFaceFor(selected.winningFaces) * globalPriceScale)) : 0;
-        const priceAutoRoll = Math.max(1, Math.round(costAutoRoller(autoRollerLevel) * globalPriceScale));
-        const priceAutoBanker = !autoBankerOwned ? Math.max(1, Math.round(costAutoBanker() * globalPriceScale)) : 0;
+      document.getElementById('diceCount').textContent = state.dice.length;
+      document.getElementById('selectedStats').textContent = `#${d.selected?.id ?? '?'} — d${d.selected?.sides ?? '?'} , ${d.selected?.winningFaces ?? '?'} winning`;
+      document.getElementById('baseHeat').textContent = tf(d.startingHeat,2);
+      document.getElementById('perWin').textContent = tf(d.payoutPerSuccess,2);
+      document.getElementById('bustPct').textContent = tf(d.bustProb*100,2);
+      document.getElementById('expSucc').textContent = tf(d.expectedSuccesses,2);
 
-        const bumpAddDiePrice = () => setAddDieInflation(x => x * 1.25);
-        const buyDie = () => { if (bank < priceDie) { appendLog('Insufficient funds for die.'); return; } setBank(b => b - priceDie); setDice(ds => { const nextId = (ds.reduce((m,d)=>Math.max(m,d.id),0) + 1) || 1; return [...ds, { id: nextId, sides: 2, winningFaces: 1 }]; }); appendLog(`Bought +1 die for ${priceDie}. New die starts as d2 with 1 winning face.`); };
-        const buySide = () => { if (!selected || !canAddSide) return; if (bank < priceSide) { appendLog('Insufficient funds for side.'); return; } setBank(b => b - priceSide); setDice(ds => ds.map(d => d.id === selected.id ? { ...d, sides: d.sides + 1, winningFaces: Math.min(d.winningFaces, d.sides) } : d)); bumpAddDiePrice(); appendLog(`Die #${selected.id}: added a side for ${priceSide}. Now d${selected.sides + 1}.`); };
-        const buyWinningFace = () => { if (!selected || !canAddWinningFace) return; if (bank < priceWin) { appendLog('Insufficient funds for winning face.'); return; } setBank(b => b - priceWin); setDice(ds => ds.map(d => d.id === selected.id ? { ...d, winningFaces: Math.min(d.winningFaces + 1, d.sides - 1) } : d)); bumpAddDiePrice(); appendLog(`Die #${selected.id}: added a winning face for ${priceWin}. Now ${Math.min(selected.winningFaces + 1, selected.sides - 1)}/${selected.sides} win.`); };
-        const buyOrUpgradeAutoRoller = () => { if (bank < priceAutoRoll) { appendLog('Insufficient funds for Auto Roller.'); return; } setBank(b => b - priceAutoRoll); setAutoRollerLevel(lv => Math.max(1, lv + 1)); bumpAddDiePrice(); appendLog(`${autoRollerLevel > 0 ? 'Upgraded' : 'Bought'} Auto Roller for ${priceAutoRoll}.`); };
-        const toggleAutoRoller = () => { if (autoRollerLevel <= 0) { appendLog('Buy the Auto Roller first.'); return; } setAutoRollerActive(a => { const na = !a; appendLog(`Auto Roller ${na ? 'started' : 'stopped'}.`); return na; }); };
-        const buyAutoBanker = () => { if (autoBankerOwned) return; if (bank < priceAutoBanker) { appendLog('Insufficient funds for Auto Banker.'); return; } setBank(b => b - priceAutoBanker); setAutoBankerOwned(true); bumpAddDiePrice(); appendLog(`Bought Auto Banker for ${priceAutoBanker}.`); };
-        const toggleAutoBanker = () => { if (!autoBankerOwned) { appendLog('Buy the Auto Banker first.'); return; } setAutoBankerActive(a => { const na = !a; appendLog(`Auto Banker ${na ? 'enabled' : 'disabled'}. Target ${autoBankTarget}.`); return na; }); };
-        const destroyDie = (id) => { setDice(ds => { if (!allowDestroy(ds.length)) { appendLog('Cannot destroy your last die.'); return ds; } const die = ds.find(d => d.id === id); if (!die) return ds; setGlobalPriceScale(s => Math.max(0.0001, s * 0.5)); setDestroyedSides(s => s + die.sides); const nd = ds.filter(d => d.id !== id); if (selectedDieId === id) setSelectedDieId(nd.length ? nd[0].id : -1); appendLog(`Destroyed die #${id} (d${die.sides}). Prices halved; interest +${(die.sides*0.1).toFixed(1)}%/tick.`); return nd; }); };
+      // Buttons panel (costs)
+      document.getElementById('diceCountNow').textContent = state.dice.length;
+      document.getElementById('diceCountNext').textContent = state.dice.length+1;
+      document.getElementById('costDie').textContent = d.priceDie;
 
-        return (
-          <div className="min-h-screen w-full text-slate-100 p-6">
-            <div className="max-w-6xl mx-auto space-y-6">
-              <header className="flex items-center justify-between">
-                <h1 className="text-2xl font-semibold tracking-tight">Push Your Luck — Per-Die Upgrades + Automation</h1>
-                <div className="flex items-center gap-2">
-                  <button onClick={resetGame} className="px-3 py-2 rounded-xl border border-white/10 hover:bg-white/5">Reset</button>
-                </div>
-              </header>
+      document.getElementById('selSides').textContent = d.selected?.sides ?? 0;
+      document.getElementById('selSidesNext').textContent = (d.selected ? d.selected.sides+1 : 0);
+      document.getElementById('costSide').textContent = d.priceSide;
 
-              <div className="grid md:grid-cols-3 gap-4">
-                <Card title="Bank">
-                  <div className="text-3xl font-bold">{Math.floor(bank)}</div>
-                  <div className="text-xs mt-1 text-white/70">Interest +{toFixed(destroyedSides*0.1,2)}%/tick • Price scale ×{toFixed(globalPriceScale,2)}</div>
-                </Card>
-                <Card title="Pot (at risk)">
-                  <div className="text-3xl font-bold">{pot}</div>
-                  <div className="text-xs mt-1 text-white/70">Heat x{toFixed(heatRaw, 2)} • Payout x{Math.max(1, heatPay)} • Streak {streak}</div>
-                </Card>
-                <Card title="Current Setup" footer={<div className="text-white/70 text-xs">Press <kbd className="px-1.5 py-0.5 border rounded">R</kbd> to Roll, <kbd className="px-1.5 py-0.5 border rounded">B</kbd> to Bank</div>}>
-                  <div className="text-sm text-white/80">
-                    <div className="mb-2">Dice: <span className="font-semibold">{dice.length}</span></div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>Selected die</div>
-                      <div className="text-right font-semibold">#{selected?.id} — d{selected?.sides}, {selected?.winningFaces} winning</div>
-                      <div>Base heat</div>
-                      <div className="text-right font-semibold">x{toFixed(startingHeat, 2)}</div>
-                      <div>Base per-win</div>
-                      <div className="text-right font-semibold">×{toFixed(payoutPerSuccess, 2)}</div>
-                      <div>Bust chance (roll)</div>
-                      <div className="text-right font-semibold">{toFixed(bustProb * 100, 2)}%</div>
-                      <div>Expected successes</div>
-                      <div className="text-right font-semibold">{toFixed(expectedSuccesses, 2)}</div>
-                    </div>
-                  </div>
-                </Card>
-              </div>
+      document.getElementById('selWin').textContent = d.selected?.winningFaces ?? 0;
+      document.getElementById('selSides2').textContent = d.selected?.sides ?? 0;
+      document.getElementById('selWinNext').textContent = d.selected ? Math.min(d.selected.winningFaces+1, d.selected.sides-1) : 0;
+      document.getElementById('selSides3').textContent = d.selected?.sides ?? 0;
+      document.getElementById('costWin').textContent = d.priceWin;
 
-              <div className="flex gap-3">
-                <button onClick={() => roll(false)} className="px-4 py-3 rounded-2xl bg-emerald-500/90 hover:bg-emerald-500 text-slate-900 font-semibold shadow">Roll</button>
-                <button onClick={bankNow} className="px-4 py-3 rounded-2xl bg-amber-400/90 hover:bg-amber-400 text-slate-900 font-semibold shadow">Bank</button>
-              </div>
+      document.getElementById('arOwned').textContent = state.autoRollerLevel>0? 'Yes':'No';
+      document.getElementById('arLevel').textContent = Math.max(0, state.autoRollerLevel);
+      document.getElementById('arInterval').textContent = d.arMs ? `${d.arMs} ms` : '—';
+      document.getElementById('costAR').textContent = d.priceAR;
 
-              <Card title="Dice & Last Roll (click a die to select)">
-                {(() => {
-                  const canDestroy = allowDestroy(dice.length);
-                  const lastById = new Map();
-                  lastRoll.forEach(r => lastById.set(r.id, { value: r.value, win: r.win }));
-                  return (
-                    <div className="flex flex-wrap gap-3">
-                      {dice.map(d => {
-                        const lr = lastById.get(d.id);
-                        const val = lr ? lr.value : undefined; const win = lr ? lr.win : false;
-                        return (
-                          <div key={d.id} role="button" tabIndex={0}
-                            onClick={() => setSelectedDieId(d.id)}
-                            onKeyDown={(e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); setSelectedDieId(d.id); }}}
-                            className={`flex items-center gap-3 px-3 py-2 rounded-xl border text-left pr-4 ${selectedDieId===d.id?"border-emerald-400 bg-emerald-400/10":"border-white/10 hover:bg-white/5"}`}>
-                            <DiceIcon n={d.sides} selected={selectedDieId===d.id} lastWin={win} label={val ?? "?"} />
-                            <div>
-                              <div className="text-sm font-semibold">Die #{d.id} — d{d.sides}</div>
-                              <div className="text-xs text-white/80">{d.winningFaces} winning face{d.winningFaces!==1?"s":""}</div>
-                              <div className="mt-1">
-                                <span role="button" tabIndex={0}
-                                  onClick={(e)=>{ if(!canDestroy) return; e.stopPropagation();
-                                    if (armedDestroyId === d.id) {
-                                      if (armTimer.current) { clearTimeout(armTimer.current); armTimer.current = null; }
-                                      setArmedDestroyId(null);
-                                      destroyDie(d.id);
-                                    } else {
-                                      setArmedDestroyId(d.id);
-                                      appendLog(`Click Destroy again to confirm die #${d.id}.`);
-                                      if (armTimer.current) clearTimeout(armTimer.current);
-                                      armTimer.current = window.setTimeout(() => setArmedDestroyId(curr => (curr === d.id ? null : curr)), 2000);
-                                    }
-                                  }}
-                                  aria-disabled={!canDestroy}
-                                  title={canDestroy?(armedDestroyId===d.id?"Click again to confirm":"Destroy this die"):"You must keep at least one die"}
-                                  className={`inline-block text-xs px-2 py-1 rounded-lg border ${canDestroy? (armedDestroyId===d.id?"border-rose-300 text-rose-100 bg-rose-500/20":"border-rose-400/60 text-rose-200 hover:bg-rose-400/10 cursor-pointer") : "opacity-40 border-white/10 text-white/40 cursor-not-allowed pointer-events-none"}`}>{armedDestroyId===d.id?"Confirm":"Destroy"}</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              </Card>
+      document.getElementById('abOwned').textContent = state.autoBankerOwned? 'Yes':'No';
+      document.getElementById('abTarget').disabled = !state.autoBankerOwned;
+      document.getElementById('costAB').textContent = d.priceAB;
+      document.getElementById('btnToggleAB').textContent = state.autoBankerActive? 'Disable':'Enable';
+      document.getElementById('btnToggleAR').textContent = state.autoRollerActive? 'Stop':'Start';
 
-              <div className="grid md:grid-cols-3 gap-4">
-                <Card title="Add a Die">
-                  <div className="text-sm text-white/80 mb-2">New die starts as d2 with 1 winning face.</div>
-                  <div className="flex items-end justify-between">
-                    <div>
-                      <div className="text-xl font-semibold">{dice.length} → {dice.length + 1}</div>
-                      <div className="text-white/70 text-sm">Cost: {priceDie}</div>
-                    </div>
-                    <button onClick={buyDie} disabled={bank < priceDie}
-                      className={`px-3 py-2 rounded-xl border ${bank >= priceDie ? "border-emerald-400 hover:bg-emerald-400/10" : "border-white/10 opacity-50 cursor-not-allowed"}`}>
-                      Buy
-                    </button>
-                  </div>
-                </Card>
+      // Enable/disable affordability
+      document.getElementById('btnBuyDie').disabled = state.bank < d.priceDie;
+      document.getElementById('btnBuySide').disabled = (!d.canAddSide) || state.bank < d.priceSide;
+      document.getElementById('btnBuyWin').disabled = (!d.canAddWinningFace) || state.bank < d.priceWin;
+      document.getElementById('btnBuyAR').disabled = state.bank < d.priceAR;
+      document.getElementById('btnBuyAB').disabled = state.autoBankerOwned || state.bank < d.priceAB;
+      document.getElementById('btnToggleAR').disabled = state.autoRollerLevel<=0;
 
-                <Card title="Add a Side (selected die)">
-                  {selected ? (
-                    <div>
-                      <div className="text-sm text-white/80 mb-2">Increase sides on the selected die.</div>
-                      <div className="flex items-end justify-between">
-                        <div>
-                          <div className="text-xl font-semibold">d{selected.sides} → d{selected.sides + 1}</div>
-                          <div className="text-white/70 text-sm">Cost: {priceSide}</div>
-                        </div>
-                        <button onClick={buySide} disabled={!canAddSide || bank < priceSide}
-                          className={`px-3 py-2 rounded-xl border ${bank >= priceSide && canAddSide ? "border-emerald-400 hover:bg-emerald-400/10" : "border-white/10 opacity-50 cursor-not-allowed"}`}>
-                          Buy
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-white/70">Select a die first.</div>
-                  )}
-                </Card>
-
-                <Card title="Add a Winning Face (selected die)">
-                  {selected ? (
-                    <div>
-                      <div className="text-sm text-white/80 mb-2">Max is N−1 for that die.</div>
-                      <div className="flex items-end justify-between">
-                        <div>
-                          <div className="text-xl font-semibold">{selected.winningFaces}/{selected.sides} → {Math.min(selected.winningFaces + 1, selected.sides - 1)}/{selected.sides}</div>
-                          <div className="text-white/70 text-sm">Cost: {priceWin}</div>
-                        </div>
-                        <button onClick={buyWinningFace} disabled={!canAddWinningFace || bank < priceWin}
-                          className={`px-3 py-2 rounded-xl border ${bank >= priceWin && canAddWinningFace ? "border-emerald-400 hover:bg-emerald-400/10" : "border-white/10 opacity-50 cursor-not-allowed"}`}>
-                          Buy
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-white/70">Select a die first.</div>
-                  )}
-                </Card>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <Card title="Auto Roller">
-                  <div className="text-sm text-white/80 mb-3">Automatically rolls at intervals. Upgrade to reduce the interval. Speed scales indefinitely.</div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <div className="text-sm">Owned: <span className="font-semibold">{autoRollerLevel>0?"Yes":"No"}</span></div>
-                      <div className="text-sm">Level: <span className="font-semibold">{Math.max(0, autoRollerLevel)}</span></div>
-                      <div className="text-sm">Interval: <span className="font-semibold">{autoRollIntervalMs? `${autoRollIntervalMs} ms` : "—"}</span></div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={buyOrUpgradeAutoRoller} disabled={bank < priceAutoRoll}
-                        className={`px-3 py-2 rounded-xl border ${bank >= priceAutoRoll ? "border-emerald-400 hover:bg-emerald-400/10" : "border-white/10 opacity-50 cursor-not-allowed"}`}>
-                        {autoRollerLevel===0?"Buy":"Upgrade"} ({priceAutoRoll})
-                      </button>
-                      <button onClick={toggleAutoRoller} disabled={autoRollerLevel<=0}
-                        className={`px-3 py-2 rounded-xl border ${autoRollerLevel>0 ? (autoRollerActive? "border-rose-300 hover:bg-rose-300/10" : "border-emerald-400 hover:bg-emerald-400/10") : "border-white/10 opacity-50 cursor-not-allowed"}`}>
-                        {autoRollerActive?"Stop":"Start"}
-                      </button>
-                    </div>
-                  </div>
-                </Card>
-
-                <Card title="Auto Banker">
-                  <div className="text-sm text-white/80 mb-3">Automatically banks when the pot reaches the target value. Price is fixed; affected by price reductions.</div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="space-y-1">
-                      <div className="text-sm">Owned: <span className="font-semibold">{autoBankerOwned?"Yes":"No"}</span></div>
-                      <div className="text-sm flex items-center gap-2">Target:
-                        <input type="number" min={1} step={1} value={autoBankTarget}
-                          onChange={(e)=> setAutoBankTarget(clamp(parseInt(e.target.value||"0",10) || 0, 1, 1_000_000))}
-                          disabled={!autoBankerOwned}
-                          className="w-28 px-2 py-1 rounded-lg bg-black/40 border border-white/10"/>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {!autoBankerOwned ? (
-                        <button onClick={buyAutoBanker} disabled={bank < priceAutoBanker}
-                          className={`px-3 py-2 rounded-xl border ${bank >= priceAutoBanker ? "border-emerald-400 hover:bg-emerald-400/10" : "border-white/10 opacity-50 cursor-not-allowed"}`}>
-                          Buy ({priceAutoBanker})
-                        </button>
-                      ) : (
-                        <button onClick={toggleAutoBanker}
-                          className={`px-3 py-2 rounded-xl border ${autoBankerActive? "border-rose-300 hover:bg-rose-300/10" : "border-emerald-400 hover:bg-emerald-400/10"}`}>
-                          {autoBankerActive?"Disable":"Enable"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              </div>
-
-              <Card title="Log">
-                <ul className="space-y-1 text-sm text-white/80">
-                  {log.map((entry, idx) => (<li key={idx}>• {entry}</li>))}
-                </ul>
-              </Card>
-
-              <div className="text-xs text-white/60">
-                <p>
-                  Rules: Roll your set of dice. If at least one die shows a winning face, you add to the pot and may roll again or bank. If none win, you bust and lose the pot.
-                  You can add dice (first costs 20, each next doubles), and you can upgrade sides and winning faces per selected die (up to N−1 winning).
-                  Starting heat adds +0.1 per side above 2 on each die; streak adds +0.05 per success. Only whole-number heat levels affect payout (×2, ×3, …).
-                  Base per-win payout increases by +0.1 for each additional die. Auto Roller: buy/upgrade speed; Auto Banker: buy and set target. Destroying a die halves
-                  all current buy prices and adds +0.1%/tick interest per side of the destroyed die. Inflation: buying anything other than Add a Die increases future Add a Die prices by +25%.
-                </p>
+      // Dice list
+      const lastById = new Map();
+      state.lastRoll.forEach(r=>lastById.set(r.id,{value:r.value,win:r.win}));
+      const canDestroy = allowDestroy(state.dice.length);
+      const tiles = state.dice.map(d=>{
+        const lr = lastById.get(d.id);
+        const val = lr ? lr.value : '?';
+        const win = lr ? lr.win : false;
+        const selected = state.selectedDieId===d.id;
+        const arm = state.armedDestroyId===d.id;
+        const destroyClass = !canDestroy ? 'destroy disabled' : (arm ? 'destroy active' : 'destroy');
+        const destroyLabel = !canDestroy ? 'Destroy' : (arm ? 'Confirm' : 'Destroy');
+        return `<div class="die-tile ${selected?'selected':''}" data-die="${d.id}">
+            ${diceIconSVG(d.sides, val, selected, win)}
+            <div>
+              <div style="font-size:14px;font-weight:600">Die #${d.id} — d${d.sides}</div>
+              <div style="font-size:12px;color:var(--muted2)">${d.winningFaces} winning face${d.winningFaces!==1?'s':''}</div>
+              <div style="margin-top:6px">
+                <span class="${destroyClass}" data-destroy="${d.id}">${destroyLabel}</span>
               </div>
             </div>
-          </div>
-        );
-      }
+          </div>`;
+      }).join('');
+      const list = document.getElementById('diceList');
+      list.innerHTML = tiles;
 
-      ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-    </script>
-  </body>
+      // Log
+      const logHtml = state.log.slice(0,20).map(s=>`<li>• ${s}</li>`).join('');
+      document.getElementById('log').innerHTML = logHtml;
+    }
+
+    function addLog(s){ state.log.unshift(s); state.log = state.log.slice(0,50); }
+
+    // ===== Actions =====
+    function roll(fromAuto=false){
+      let successes = 0; const res = [];
+      for(const d of state.dice){
+        const v = 1 + Math.floor(Math.random()*d.sides);
+        const win = v <= d.winningFaces; if(win) successes++;
+        res.push({id:d.id,value:v,win});
+      }
+      state.lastRoll = res;
+      if(successes===0){
+        if(state.pot>0) addLog(`Bust. Lost pot of ${state.pot}.`);
+        state.pot = 0; state.streak = 0; render(); return;
+      }
+      const d = derived();
+      const payMult = Math.max(1, d.heatPay);
+      const gain = Math.round(successes * d.payoutPerSuccess * payMult);
+      const newPot = state.pot + gain;
+      if(state.autoBankerOwned && state.autoBankerActive && newPot >= state.autoBankerTarget){
+        state.bank += newPot; state.pot = 0; state.streak = 0;
+        addLog(`Auto-banked ${newPot} (target ${state.autoBankerTarget}+).${fromAuto?' [auto-roll]':''}`);
+      } else {
+        state.pot = newPot; state.streak += 1;
+        addLog(`Success: ${successes}/${state.dice.length} wins. +${gain} to pot.${fromAuto?' [auto-roll]':''}`);
+      }
+      render();
+    }
+
+    function bankNow(){ if(state.pot<=0){ addLog('Nothing to bank.'); render(); return; } state.bank += state.pot; addLog(`Banked ${state.pot}.`); state.pot=0; state.streak=0; render(); }
+
+    function resetGame(){
+      state.bank=0; state.pot=0; state.streak=0; state.dice=[{id:1,sides:2,winningFaces:1}]; state.selectedDieId=1; state.lastRoll=[];
+      state.autoRollerLevel=0; state.autoRollerActive=false; state.autoBankerOwned=false; state.autoBankerActive=false; state.autoBankerTarget=20;
+      state.addDieInflation=1; state.globalPriceScale=1; state.destroyedSides=0; state.armedDestroyId=null; state.log=["Reset to one coin (d2) with one winning face per-die."];
+      refreshAutoTimer(); render();
+    }
+
+    function bumpAddDiePrice(){ state.addDieInflation *= 1.25; }
+
+    function buyDie(){ const {priceDie}=derived(); if(state.bank<priceDie){ addLog('Insufficient funds for die.'); render(); return; }
+      state.bank -= priceDie; const nextId = (state.dice.reduce((m,d)=>Math.max(m,d.id),0)+1)||1; state.dice.push({id:nextId,sides:2,winningFaces:1}); addLog(`Bought +1 die for ${priceDie}. New die is d2 with 1 winning face.`); render(); }
+
+    function buySide(){ const d=derived(); if(!d.selected || !d.canAddSide){ return; } if(state.bank<d.priceSide){ addLog('Insufficient funds for side.'); render(); return; }
+      state.bank -= d.priceSide; state.dice = state.dice.map(x=> x.id===d.selected.id ? {...x, sides:x.sides+1, winningFaces: Math.min(x.winningFaces, x.sides+1)} : x ); bumpAddDiePrice(); addLog(`Die #${d.selected.id}: +1 side for ${d.priceSide}. Now d${d.selected.sides+1}.`); render(); }
+
+    function buyWinningFace(){ const d=derived(); if(!d.selected || !d.canAddWinningFace){ return; } if(state.bank<d.priceWin){ addLog('Insufficient funds for winning face.'); render(); return; }
+      state.bank -= d.priceWin; state.dice = state.dice.map(x=> x.id===d.selected.id ? {...x, winningFaces: Math.min(x.winningFaces+1, x.sides-1)} : x ); bumpAddDiePrice(); addLog(`Die #${d.selected.id}: +1 winning face for ${d.priceWin}. Now ${Math.min(d.selected.winningFaces+1, d.selected.sides-1)}/${d.selected.sides} win.`); render(); }
+
+    function buyOrUpgradeAR(){ const d=derived(); if(state.bank<d.priceAR){ addLog('Insufficient funds for Auto Roller.'); render(); return; }
+      state.bank -= d.priceAR; state.autoRollerLevel = Math.max(1, state.autoRollerLevel+1); bumpAddDiePrice(); addLog(`${state.autoRollerLevel>1?'Upgraded':'Bought'} Auto Roller for ${d.priceAR}.`); refreshAutoTimer(); render(); }
+
+    function toggleAR(){ if(state.autoRollerLevel<=0){ addLog('Buy the Auto Roller first.'); render(); return; } state.autoRollerActive = !state.autoRollerActive; addLog(`Auto Roller ${state.autoRollerActive?'started':'stopped'}.`); refreshAutoTimer(); render(); }
+
+    function buyAB(){ const d=derived(); if(state.autoBankerOwned) return; if(state.bank<d.priceAB){ addLog('Insufficient funds for Auto Banker.'); render(); return; } state.bank -= d.priceAB; state.autoBankerOwned=true; bumpAddDiePrice(); addLog(`Bought Auto Banker for ${d.priceAB}.`); render(); }
+
+    function toggleAB(){ if(!state.autoBankerOwned){ addLog('Buy the Auto Banker first.'); render(); return; } state.autoBankerActive=!state.autoBankerActive; addLog(`Auto Banker ${state.autoBankerActive?'enabled':'disabled'}. Target ${state.autoBankerTarget}.`); render(); }
+
+    function destroyDie(id){ if(!allowDestroy(state.dice.length)){ addLog('Cannot destroy your last die.'); render(); return; } const die = state.dice.find(d=>d.id===id); if(!die){ return; }
+      state.globalPriceScale = Math.max(0.0001, state.globalPriceScale * 0.5); state.destroyedSides += die.sides; state.dice = state.dice.filter(d=>d.id!==id); if(state.selectedDieId===id){ state.selectedDieId = state.dice.length ? state.dice[0].id : -1; } state.armedDestroyId = null; addLog(`Destroyed die #${id} (d${die.sides}). Prices halved; interest +${(die.sides*0.1).toFixed(1)}%/tick.`); render(); }
+
+    // ===== Timers =====
+    function refreshAutoTimer(){ if(autoTimer){ clearInterval(autoTimer); autoTimer=null; } const ms = autoIntervalMs(state.autoRollerLevel); if(state.autoRollerActive && ms){ autoTimer = setInterval(()=>roll(true), ms); } }
+    function ensureInterestTimer(){ if(interestTimer) return; interestTimer = setInterval(()=>{ if(state.destroyedSides>0){ state.bank += state.bank * state.destroyedSides * 0.001; render(); } }, 1000); }
+
+    // ===== Events =====
+    document.getElementById('btnReset').addEventListener('click', resetGame);
+    document.getElementById('btnRoll').addEventListener('click', ()=>roll(false));
+    document.getElementById('btnBank').addEventListener('click', bankNow);
+
+    document.getElementById('btnBuyDie').addEventListener('click', buyDie);
+    document.getElementById('btnBuySide').addEventListener('click', buySide);
+    document.getElementById('btnBuyWin').addEventListener('click', buyWinningFace);
+
+    document.getElementById('btnBuyAR').addEventListener('click', buyOrUpgradeAR);
+    document.getElementById('btnToggleAR').addEventListener('click', toggleAR);
+
+    document.getElementById('btnBuyAB').addEventListener('click', buyAB);
+    document.getElementById('btnToggleAB').addEventListener('click', toggleAB);
+    document.getElementById('abTarget').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'0',10); state.autoBankerTarget = clamp(isNaN(v)?0:v, 1, 1_000_000); });
+
+    // Delegation: dice list
+    document.getElementById('diceList').addEventListener('click', (e)=>{
+      const destroyEl = e.target.closest('[data-destroy]');
+      if(destroyEl){
+        const id = parseInt(destroyEl.getAttribute('data-destroy'),10);
+        if(state.armedDestroyId === id){ destroyDie(id); return; }
+        if(!allowDestroy(state.dice.length)) return; // ignore
+        state.armedDestroyId = id; addLog(`Click Destroy again to confirm die #${id}.`); render();
+        setTimeout(()=>{ if(state.armedDestroyId === id){ state.armedDestroyId = null; render(); } }, 2000);
+        return;
+      }
+      const tile = e.target.closest('[data-die]');
+      if(tile){ state.selectedDieId = parseInt(tile.getAttribute('data-die'),10); render(); }
+    });
+
+    // Keys R/B
+    window.addEventListener('keydown', (e)=>{
+      const k = e.key.toLowerCase(); if(k==='r'){ e.preventDefault(); roll(); } else if(k==='b'){ e.preventDefault(); bankNow(); }
+    });
+
+    // Minimal self-tests
+    (function tests(){ try{
+      console.assert(costAddDie(1)===20,'costAddDie(1)=20');
+      console.assert(costAddDie(3)===80,'costAddDie(3)=80');
+      const heat = computeStartingHeat([{id:1,sides:3,winningFaces:1},{id:2,sides:5,winningFaces:1}]);
+      console.assert(Math.abs(heat-1.4)<1e-9,'d3+d5 heat 1.4');
+      console.assert(autoIntervalMs(3) < autoIntervalMs(1),'AR speeds up');
+    }catch(_){} })();
+
+    // Boot
+    ensureInterestTimer();
+    render();
+  </script>
+</body>
 </html>
