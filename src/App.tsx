@@ -229,28 +229,43 @@ const App: React.FC = () => {
       setLastRoll(results);
 
       if (successes === 0) {
-        if (pot > 0) appendLog(`Bust. Lost pot of ${pot}.`);
-        setPot(0);
+        let lostPot = 0;
+        setPot((prevPot) => {
+          lostPot = prevPot;
+          return 0;
+        });
         setStreak(0);
+        if (lostPot > 0) {
+          appendLog(`Bust. Lost pot of ${lostPot}.`);
+        }
         return;
       }
 
       const payMult = Math.max(1, heatPay);
       const gain = Math.round(successes * payoutPerSuccess * payMult);
-      const newPot = pot + gain;
 
-      if (autoBankerOwned && autoBankerActive && newPot >= autoBankTarget) {
+      let newPot = 0;
+      let autoBanked = false;
+      setPot((prevPot) => {
+        const candidate = prevPot + gain;
+        newPot = candidate;
+        if (autoBankerOwned && autoBankerActive && candidate >= autoBankTarget) {
+          autoBanked = true;
+          return 0;
+        }
+        return candidate;
+      });
+
+      if (autoBanked) {
         setBank((b) => b + newPot);
-        setPot(0);
         setStreak(0);
         appendLog(`Auto-banked ${newPot} (target ${autoBankTarget}+).${fromAuto ? " [auto-roll]" : ""}`);
       } else {
-        setPot(newPot);
         setStreak((s) => s + 1);
         appendLog(`Success: ${successes}/${dice.length} wins. +${gain} to pot.${fromAuto ? " [auto-roll]" : ""}`);
       }
     },
-    [appendLog, autoBankTarget, autoBankerActive, autoBankerOwned, dice, heatPay, payoutPerSuccess, pot]
+    [appendLog, autoBankTarget, autoBankerActive, autoBankerOwned, dice, heatPay, payoutPerSuccess]
   );
 
   const bankNow = useCallback(() => {
