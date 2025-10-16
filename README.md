@@ -17,6 +17,18 @@ Run the test suite with:
 npm test
 ```
 
+## Deploying to GitHub Pages
+
+This project ships with a GitHub Actions workflow that builds the Vite app and
+publishes the generated `dist/` directory to the `gh-pages` branch. To deploy:
+
+1. Enable GitHub Pages in the repository settings and choose the `gh-pages`
+   branch as the publication source.
+2. Push to `main` (or trigger the workflow manually). The action will run
+   `npm ci` and `npm run build`, then upload the compiled assets from `dist/`.
+3. GitHub Pages will serve the static bundle that references the hashed
+   JavaScript files Vite produces, avoiding 404s for `src/main.tsx`.
+
 ## Project structure
 
 ```
