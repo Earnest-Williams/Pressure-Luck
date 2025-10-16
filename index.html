@@ -222,7 +222,7 @@
       autoRollerActive: false,
       autoBankerOwned: false,
       autoBankerActive: false,
-      autoBankTarget: 20,
+      autoBankerTarget: 20,
       addDieInflation: 1,
       globalPriceScale: 1,
       destroyedSides: 0,
@@ -295,7 +295,9 @@
       document.getElementById('costAR').textContent = d.priceAR;
 
       document.getElementById('abOwned').textContent = state.autoBankerOwned? 'Yes':'No';
-      document.getElementById('abTarget').disabled = !state.autoBankerOwned;
+      const abTargetEl = document.getElementById('abTarget');
+      abTargetEl.disabled = !state.autoBankerOwned;
+      abTargetEl.value = state.autoBankerTarget;
       document.getElementById('costAB').textContent = d.priceAB;
       document.getElementById('btnToggleAB').textContent = state.autoBankerActive? 'Disable':'Enable';
       document.getElementById('btnToggleAR').textContent = state.autoRollerActive? 'Stop':'Start';
@@ -418,7 +420,7 @@
 
     document.getElementById('btnBuyAB').addEventListener('click', buyAB);
     document.getElementById('btnToggleAB').addEventListener('click', toggleAB);
-    document.getElementById('abTarget').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'0',10); state.autoBankerTarget = clamp(isNaN(v)?0:v, 1, 1_000_000); });
+    document.getElementById('abTarget').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'0',10); state.autoBankerTarget = clamp(isNaN(v)?0:v, 1, 1_000_000); render(); });
 
     // Delegation: dice list
     document.getElementById('diceList').addEventListener('click', (e)=>{
