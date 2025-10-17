@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Canvas Playing Cards (Programmatic, No Images)</title>
+<style>
+  html, body { height: 100%; margin: 0; background: #111; color: #ddd; font: 14px system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+  header { padding: 12px 16px; }
+  #info { opacity: 0.9 }
+  canvas { display: block; width: 100%; background: #181818; }
+</style>
+</head>
+<body>
+  <header>
+    <div id="info">Canvas playing cards. Resize the window; cards stay crisp. Left side shows all fronts; right column shows the back design.<br/>
+    Public domain code. API: <code>drawCard(ctx,x,y,w,h,rank,suit,opts)</code>, <code>drawBack(ctx,x,y,w,h,opts)</code>.
+    </div>
+  </header>
+  <canvas id="c"></canvas>
+<script>
+// ====================== HiDPI helpers ==========================
+function fitHiDPI(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(rect.width * dpr));
+  const h = Math.max(1, Math.floor(rect.height * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w; canvas.height = h;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return ctx;
+}
+function roundRect(ctx, x, y, w, h, r) {
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr, y);
+  ctx.arcTo(x+w, y, x+w, y+h, rr);
+  ctx.arcTo(x+w, y+h, x, y+h, rr);
+  ctx.arcTo(x, y+h, x, y, rr);
+  ctx.arcTo(x, y, x+w, y, rr);
+  ctx.closePath();
+}
+// ====================== Card constants =========================
+// Suits: spade, heart, diamond, club(triquetra SVG), acorn(German), stave(Tarot)
+const SUITS = ['\u2660','\u2665','\u2666','\u2663','A','T'];
+const SUIT_GLYPH = { spade:'\u2660', heart:'\u2665', diamond:'\u2666', club:'\u2663', acorn:'A', stave:'T' };
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','M','Q','K'];
+function suitChar(suit) { return SUIT_GLYPH[suit] || suit; }
+function isRed(suit) { const s = suitChar(suit); return s === '\u2665' || s === '\u2666'; }
+function suitColor(suit, theme){
+  const s = suitChar(suit);
+  if (s==='\u2665' || s==='\u2666') return theme.red;
+  if (s==='\u2663' || s==='A') return theme.green; // clubs (triquetra) + acorns are green
+  return theme.black; // spades and staves are black
+}
+// ====================== Suit vector paths ======================
+function pathHeart(ctx){
+  ctx.beginPath();
+  ctx.moveTo(0.5,0.9);
+  ctx.bezierCurveTo(0.2,0.7,0.0,0.5,0.0,0.3);
+  ctx.bezierCurveTo(0.0,0.15,0.12,0.05,0.25,0.05);
+  ctx.bezierCurveTo(0.35,0.05,0.43,0.1,0.5,0.18);
+  ctx.bezierCurveTo(0.57,0.1,0.65,0.05,0.75,0.05);
+  ctx.bezierCurveTo(0.88,0.05,1.0,0.15,1.0,0.3);
+  ctx.bezierCurveTo(1.0,0.5,0.8,0.7,0.5,0.9);
+  ctx.closePath();
+}
+function pathDiamond(ctx){
+  ctx.beginPath();
+  ctx.moveTo(0.5,0.05);
+  ctx.lineTo(0.95,0.5);
+  ctx.lineTo(0.5,0.95);
+  ctx.lineTo(0.05,0.5);
+  ctx.closePath();
+}
+function pathSpade(ctx){
+  ctx.beginPath();
+  ctx.moveTo(0.5,0.05);
+  ctx.bezierCurveTo(0.75,0.2,1.0,0.4,1.0,0.6);
+  ctx.bezierCurveTo(1.0,0.75,0.88,0.9,0.7,0.9);
+  ctx.bezierCurveTo(0.6,0.9,0.52,0.85,0.5,0.8);
+  ctx.bezierCurveTo(0.48,0.85,0.4,0.9,0.3,0.9);
+  ctx.bezierCurveTo(0.12,0.9,0.0,0.75,0.0,0.6);
+  ctx.bezierCurveTo(0.0,0.4,0.25,0.2,0.5,0.05);
+  ctx.closePath();
+  ctx.moveTo(0.4,0.9);
+  ctx.lineTo(0.6,0.9);
+  ctx.lineTo(0.55,0.98);
+  ctx.lineTo(0.45,0.98);
+  ctx.closePath();
+}
+// New suit: Acorn (German "Eichel"), stylized
+function pathAcorn(ctx){
+  ctx.beginPath();
+  // Cap
+  ctx.moveTo(0.2,0.42);
+  ctx.bezierCurveTo(0.3,0.30,0.7,0.30,0.8,0.42);
+  ctx.bezierCurveTo(0.85,0.46,0.9,0.50,0.9,0.54);
+  ctx.bezierCurveTo(0.9,0.58,0.85,0.62,0.8,0.64);
+  // Nut body (rounded inverted teardrop)
+  ctx.bezierCurveTo(0.78,0.90,0.62,0.98,0.5,0.98);
+  ctx.bezierCurveTo(0.38,0.98,0.22,0.90,0.20,0.64);
+  ctx.bezierCurveTo(0.15,0.62,0.10,0.58,0.10,0.54);
+  ctx.bezierCurveTo(0.10,0.50,0.15,0.46,0.2,0.42);
+  ctx.closePath();
+  // Stem
+  ctx.moveTo(0.5,0.35);
+  ctx.bezierCurveTo(0.52,0.26,0.60,0.18,0.70,0.12);
+  ctx.bezierCurveTo(0.73,0.10,0.76,0.09,0.78,0.12);
+  ctx.bezierCurveTo(0.80,0.15,0.76,0.18,0.74,0.20);
+  ctx.bezierCurveTo(0.66,0.26,0.60,0.32,0.58,0.38);
+}
+// ======= Clubs as provided SVG triquetra (three filled paths), scaled to unit =======
+const TRI_P1 = new Path2D(`M544.541870,780.497925 C537.100342,776.113831 529.814697,772.143555 523.525452,766.262817 C526.134949,762.185913 529.998047,760.064209 533.267578,757.397339 C547.499512,745.788879 560.903198,733.293335 573.381531,719.843689 C576.776184,716.184814 579.277161,715.359131 583.835693,718.167236 C601.078125,728.789124 619.240479,737.283752 639.373413,741.140808 C689.258118,750.697632 735.071777,727.090210 753.467651,680.109436 C765.295715,649.902039 761.805054,619.887817 744.968750,591.838867 C727.622498,562.940369 702.115234,542.987610 673.190918,526.860901 C639.766602,508.225159 603.704041,497.294281 566.093506,491.639282 C533.013916,486.665497 499.753296,486.633667 466.517059,491.003418 C455.621368,492.435974 444.790314,494.127686 434.128693,496.763123 C431.136475,497.502747 429.678772,496.532227 429.033844,493.759949 C424.963043,476.261078 421.108521,458.724243 419.687531,440.757294 C419.425140,437.439636 419.255157,434.104248 418.769409,430.817413 C418.213013,427.052490 419.821808,425.421112 423.398590,424.652161 C438.051636,421.502106 452.877350,419.519562 467.736176,417.711304 C488.634552,415.168060 509.639679,415.145721 530.604248,415.776520 C595.273560,417.722351 656.346130,433.226257 712.772156,465.483276 C744.950012,483.878418 773.024719,507.075562 795.517151,536.762878 C814.408142,561.696655 826.868591,589.526245 830.997253,620.484192 C837.540588,669.547424 826.120178,714.228577 794.764526,752.976562 C767.453918,786.725769 732.067993,807.409302 689.152039,814.223816 C643.067749,821.541504 600.218750,810.786804 559.658020,789.025757 C554.669189,786.349243 549.791199,783.465942 544.541870,780.497925 z`);
+const TRI_P2 = new Path2D(`M308.330505,468.252808 C314.117065,465.351013 319.113068,461.659912 325.533386,459.544922 C327.993225,466.133728 328.085693,472.833130 329.097137,479.261688 C331.740143,496.059998 335.962036,512.456360 340.736389,528.724976 C341.776337,532.268494 340.974304,534.125488 337.884949,536.037109 C319.897064,547.167480 303.920532,560.691711 290.671387,577.239258 C270.320282,602.656738 262.156006,631.512634 267.489349,663.757080 C273.877716,702.380066 308.587372,735.977539 346.932739,741.758667 C377.832489,746.417358 406.008514,738.526672 432.878387,724.160522 C475.648132,701.293518 510.289246,669.058533 539.817871,630.956604 C566.889893,596.024536 587.770813,557.750854 602.069153,515.926086 C603.296204,512.336731 604.758179,511.347076 608.604675,512.499207 C628.616943,518.493652 647.899048,526.188110 666.357422,535.993469 C669.622681,537.727966 670.465027,539.476807 669.202148,543.098999 C652.994202,589.586731 629.665100,632.151123 599.851746,671.316345 C572.210449,707.628174 540.644592,739.810059 503.272125,766.167175 C473.611725,787.085205 442.072754,804.270325 406.261261,811.715088 C341.881500,825.098755 285.341339,810.473145 239.215591,762.141235 C213.030899,734.704102 198.331192,701.519104 194.080078,664.051270 C189.511734,623.787598 198.850708,586.339111 219.967941,551.847534 C241.816788,516.161011 272.791809,490.041870 308.330505,468.252808 z`);
+const TRI_P3 = new Path2D(`M682.812134,351.410522 C688.188904,372.400726 690.253418,393.412018 690.751343,414.581512 C690.948608,422.966675 690.309631,431.371521 690.040100,440.135162 C685.957764,439.766632 683.264587,438.011047 680.451416,436.773468 C661.975220,428.645416 642.957764,422.097015 623.361023,417.300568 C619.397400,416.330444 618.727905,414.183990 618.608887,410.555511 C617.644531,381.153717 611.966736,352.833618 595.378540,328.020477 C573.976990,296.007233 543.616272,279.440582 504.935394,282.772308 C467.709747,285.978699 440.863525,306.265167 423.966644,339.432526 C413.135620,360.693054 408.174835,383.640228 407.414246,407.299500 C405.504822,466.694244 421.522888,521.732361 448.914398,573.934143 C463.399200,601.538818 481.236389,626.751160 501.866150,650.033997 C504.619080,653.140930 504.196228,654.967529 501.345520,657.852417 C487.137146,672.231323 471.772858,685.207153 455.601715,697.308533 C452.009308,699.996948 449.978485,699.947083 447.011719,696.574463 C411.584381,656.301819 383.264740,611.658630 363.780640,561.584167 C350.505890,527.468079 341.726349,492.243530 337.435364,455.837372 C333.162659,419.586273 334.378204,383.698395 343.669312,348.345520 C356.069031,301.164429 380.943024,262.444122 422.496063,235.621017 C446.900421,219.867661 473.665283,211.196075 502.775543,209.442657 C538.361572,207.299194 571.359619,215.563766 601.401001,234.337570 C638.744690,257.674866 663.418457,291.220947 677.298706,332.838684 C679.296814,338.829742 680.893860,344.954590 682.812134,351.410522 z`);
+function pathTriquetraSVGUnit(ctx){
+  ctx.save();
+  ctx.scale(1/1024, 1/1024);
+  ctx.fill(TRI_P1);
+  ctx.fill(TRI_P2);
+  ctx.fill(TRI_P3);
+  ctx.restore();
+}
+
+// ======= Staves/Crooks: replace with provided SVG (viewBox 0 0 465 465) =======
+const CROOKS_P1 = new Path2D("m 154.22628,6.3486432 c 17.83251,4.7782058 33.12384,16.0015838 43.05566,31.6035658 9.39382,14.754864 13.23305,32.184007 10.92497,49.359102 L 407.27406,432.10575 c -2.85231,3.59007 -52.95515,30.57289 -37.06113,21.39649 L 164.18858,96.657607 c -0.94523,-1.638518 -1.20154,-3.584706 -0.71173,-5.412693 l 1.52948,-5.708092 c 4.41098,-16.461978 -5.39271,-33.442432 -21.85468,-37.853406 -16.46197,-4.410974 -33.44242,5.392697 -37.85341,21.854674 -4.41096,16.461978 5.39271,33.44244 21.85468,37.85341 19.04504,5.10309 34.97976,19.03998 42.62377,37.28283 1.38815,3.31079 0.0967,7.13821 -3.01212,8.93392 l -25.11603,14.50073 c -1.91571,1.10527 -4.23491,1.26558 -6.28202,0.41775 -2.04583,-0.84158 -3.58421,-2.58489 -4.16631,-4.71878 -2.00068,-7.33727 -7.79601,-13.11575 -15.1245,-15.07941 C 76.821783,138.21047 53.442662,97.716646 63.960722,58.462717 74.478779,19.208788 114.97237,-4.1694149 154.22628,6.3486432 Z");
+const CROOKS_P2 = new Path2D("M 326.50239,7.5486796 C 308.66988,12.326885 293.37855,23.550262 283.44673,39.152245 274.05291,53.907109 270.21368,71.336252 272.52176,88.511347 L 73.454601,433.3058 c 2.852328,3.59005 52.955159,30.57289 37.061139,21.39648 L 316.54009,97.85764 c 0.94523,-1.638515 1.20154,-3.584704 0.71173,-5.41269 l -1.52948,-5.708092 c -4.41098,-16.461978 5.39271,-33.442432 21.85468,-37.853406 16.46197,-4.410973 33.44242,5.392696 37.85341,21.854674 4.41097,16.461978 -5.39271,33.442424 -21.85468,37.853404 -19.04504,5.1031 -34.97976,19.03997 -42.62377,37.28283 -1.38815,3.31081 -0.0967,7.13822 3.01212,8.93393 l 25.11603,14.50073 c 1.91571,1.10527 4.23491,1.26557 6.28202,0.41774 2.04583,-0.84158 3.58421,-2.58487 4.16631,-4.71877 2.00068,-7.33727 7.79601,-13.11576 15.1245,-15.07942 39.25393,-10.51806 62.63305,-51.011887 52.11499,-90.265817 C 406.24989,20.408824 365.7563,-2.9693792 326.50239,7.5486796 Z");
+function pathStaveSVGUnit(ctx){
+  ctx.save();
+  ctx.scale(1/465, 1/465);
+  ctx.fill(CROOKS_P1);
+  ctx.fill(CROOKS_P2);
+  ctx.restore();
+}
+
+function drawUnitSuit(ctx, suit){
+  const s = suitChar(suit);
+  if (s==='\u2665') { pathHeart(ctx); return; }
+  if (s==='\u2666') { pathDiamond(ctx); return; }
+  if (s==='\u2660') { pathSpade(ctx); return; }
+  if (s==='\u2663') { pathTriquetraSVGUnit(ctx); return; }
+  if (s==='A') { pathAcorn(ctx); return; }
+  if (s==='T') { pathStaveSVGUnit(ctx); return; }
+}
+// ========== Normalize suits by circumscribed circle (spade baseline) ==========
+let __suitScale = null;
+function measureSuitRadius(suit){
+  const N = 260; const off = document.createElement('canvas'); off.width = N; off.height = N;
+  const c = off.getContext('2d'); c.scale(N, N);
+  drawUnitSuit(c, suit); c.fillStyle = '#000'; c.fill();
+  const data = c.getImageData(0,0,N,N).data, cx = N/2, cy = N/2; let r2 = 0;
+  for (let y=0; y<N; y++) for (let x=0; x<N; x++) {
+    if (data[(y*N + x)*4 + 3]) { const dx = x + 0.5 - cx, dy = y + 0.5 - cy; const d2 = dx*dx + dy*dy; if (d2 > r2) r2 = d2; }
+  }
+  return Math.sqrt(r2) / N;
+}
+function ensureSuitScale(){
+  if (__suitScale) return __suitScale;
+  const radii = Object.fromEntries(SUITS.map(s=>[s,measureSuitRadius(s)]));
+  const target = radii['\u2660'];
+  __suitScale = Object.fromEntries(SUITS.map(s=>[s, target / radii[s]]));
+  return __suitScale;
+}
+function drawSuit(ctx, x, y, size, suit, fillStyle){
+  const scaleMod = ensureSuitScale()[suitChar(suit)] || 1;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(size*scaleMod, size*scaleMod);
+  const s = suitChar(suit);
+  ctx.fillStyle = fillStyle;
+  if (s === '\u2663') {
+    pathTriquetraSVGUnit(ctx);
+  } else if (s === 'T') {
+    pathStaveSVGUnit(ctx);
+  } else {
+    drawUnitSuit(ctx, suit);
+    ctx.fill('nonzero');
+  }
+  ctx.restore();
+}
+// ====================== Pip layouts (USPCC-like) ============================
+const PipLayouts = (function(){
+  const X = { L:0.30, C:0.50, R:0.70 };
+  const Y = { T1:0.19, T2:0.33, M:0.50, B2:0.67, B1:0.81 };
+  return {
+    'A': [[X.C, Y.M]],
+    '2': [[X.C, Y.T1],[X.C, Y.B1]],
+    '3': [[X.C, Y.T1],[X.C, Y.M],[X.C, Y.B1]],
+    '4': [[X.L, Y.T1],[X.R, Y.T1],[X.L, Y.B1],[X.R, Y.B1]],
+    '5': [[X.L, Y.T1],[X.R, Y.T1],[X.C, Y.M],[X.L, Y.B1],[X.R, Y.B1]],
+    '6': [[X.L, Y.T2],[X.R, Y.T2],[X.L, Y.M],[X.R, Y.M],[X.L, Y.B2],[X.R, Y.B2]],
+    '7': [[X.C, Y.T1],[X.L, Y.T2],[X.R, Y.T2],[X.L, Y.M],[X.R, Y.M],[X.L, Y.B2],[X.R, Y.B2]],
+    '8': [[X.C, Y.T1],[X.L, Y.T2],[X.R, Y.T2],[X.L, Y.M],[X.R, Y.M],[X.L, Y.B2],[X.R, Y.B2],[X.C, Y.B1]],
+    '9': [[X.C, Y.T1],[X.L, Y.T2],[X.R, Y.T2],[X.L, Y.M],[X.C, Y.M],[X.R, Y.M],[X.L, Y.B2],[X.R, Y.B2],[X.C, Y.B1]],
+    '10': [[X.L, Y.T1],[X.C, Y.T1],[X.R, Y.T1],[X.L, Y.T2],[X.R, Y.T2],[X.L, Y.B2],[X.R, Y.B2],[X.L, Y.B1],[X.C, Y.B1],[X.R, Y.B1]],
+  };
+})();
+// ====================== Card drawing ===========================
+function drawCorners(ctx,x,y,w,h,rank,suit,theme){
+  const pad=w*0.06; const cornerW=w*0.22; const fontRank=Math.floor(h*0.12);
+  const iconSize=h*0.07;
+  const color=suitColor(suit,theme);
+  ctx.save(); ctx.fillStyle=color; ctx.textAlign='center';
+  ctx.textBaseline='top'; ctx.font=`700 ${fontRank}px system-ui, ui-sans-serif, Arial`;
+  ctx.fillText(rank,x+pad,y+pad,cornerW);
+  drawSuit(ctx,x+pad+iconSize*0.4,y+pad+fontRank*1.2,iconSize,suit,color);
+  ctx.translate(x+w-pad,y+h-pad); ctx.rotate(Math.PI);
+  ctx.textBaseline='top'; ctx.font=`700 ${fontRank}px system-ui, ui-sans-serif, Arial`;
+  ctx.fillText(rank,0,0,cornerW);
+  drawSuit(ctx,iconSize*0.4,fontRank*1.2,iconSize,suit,color);
+  ctx.restore();
+}
+function drawPips(ctx,x,y,w,h,rank,suit,theme){
+  const layout=PipLayouts[rank]; if(!layout) return;
+  const innerPadX=w*0.14, innerPadY=h*0.16; const iw=w-innerPadX*2, ih=h-innerPadY*2;
+  const base = Math.min(iw,ih); const pipSize = base * 0.18;
+  const color=suitColor(suit,theme);
+  for(const[nx,ny] of layout){
+    const px=x+innerPadX+nx*iw-pipSize*0.5;
+    const py=y+innerPadY+ny*ih-pipSize*0.5;
+    drawSuit(ctx,px,py,pipSize,suit,color);
+  }
+}
+function drawCard(ctx,x,y,w,h,rank,suit,options={}){
+  const theme={face:'#fff',border:'#d8d8d8',black:'#111',red:'#bf0000',green:'#0a8f4c',shadow:'rgba(0,0,0,0.18)',...options.theme};
+  const r=Math.min(w,h)*0.08;
+  if(options.shadow!==false){ctx.save();ctx.fillStyle=theme.shadow;roundRect(ctx,x+3,y+3,w,h,r);ctx.fill();ctx.restore();}
+  ctx.save(); ctx.fillStyle=theme.face; roundRect(ctx,x,y,w,h,r); ctx.fill();
+  ctx.lineWidth=Math.max(1,Math.floor(Math.min(w,h)*0.02)); ctx.strokeStyle=theme.border; ctx.stroke();
+  drawCorners(ctx,x,y,w,h,rank,suit,theme);
+  if(['J','M','Q','K'].includes(rank)){
+    const s=isRed(suit)?theme.red:theme.black; const fs=Math.floor(h*0.38);
+    ctx.font=`900 ${fs}px 'Times New Roman', Georgia, serif`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle=s; ctx.fillText(rank[0],x+w/2,y+h/2);
+  } else {
+    drawPips(ctx,x,y,w,h,rank,suit,theme);
+  }
+  ctx.restore();
+}
+function drawBack(ctx,x,y,w,h,options={}){
+  const theme={face:'#0043a8',border:'#d8d8d8',ink:'#e6f0ff',shadow:'rgba(0,0,0,0.18)',...options.theme};
+  const r=Math.min(w,h)*0.08;
+  if(options.shadow!==false){ctx.save();ctx.fillStyle=theme.shadow;roundRect(ctx,x+3,y+3,w,h,r);ctx.fill();ctx.restore();}
+  ctx.save(); roundRect(ctx,x,y,w,h,r); ctx.fillStyle=theme.face; ctx.fill();
+  ctx.lineWidth=Math.max(1,Math.floor(Math.min(w,h)*0.02)); ctx.strokeStyle=theme.border; ctx.stroke(); ctx.restore();
+}
+// ====================== Single canvas & render =================
+const canvas = document.getElementById('c');
+let ctx = fitHiDPI(canvas);
+function render(){
+  canvas.style.width = '100%';
+  ctx = fitHiDPI(canvas);
+  const W = canvas.getBoundingClientRect().width;
+  const cols = SUITS.length + 1; // fronts + one back column
+  const cardW = Math.floor(W / (cols + 1.2));
+  const cardH = Math.floor(cardW * 1.4);
+  const gap = Math.floor(cardW * 0.18);
+  const leftPad = Math.floor(cardW * 0.4);
+  const topPad = Math.floor(cardH * 0.2);
+  const rows = RANKS.length;
+  const rowGap = Math.floor(gap * 0.8);
+  const contentH = topPad + rows * cardH + (rows - 1) * rowGap + topPad;
+  canvas.style.height = contentH + 'px';
+  ctx = fitHiDPI(canvas);
+  const H = canvas.getBoundingClientRect().height;
+  ctx.clearRect(0, 0, W, H);
+  const suits = SUITS;
+  for (let r = 0; r < RANKS.length; r++) {
+    const rank = RANKS[r];
+    for (let s = 0; s < suits.length; s++) {
+      const suit = suits[s];
+      const x = leftPad + (s * (cardW + gap));
+      const y = topPad + (r * (cardH + rowGap));
+      drawCard(ctx, x, y, cardW, cardH, rank, suit);
+    }
+  }
+  const backX = leftPad + (suits.length * (cardW + gap));
+  const backY = topPad;
+  drawBack(ctx, backX, backY, cardW, cardH);
+}
+window.addEventListener('resize', render, { passive: true });
+render();
+// ====================== Lightweight tests =====================
+(function selfTests(){
+  try{
+    const scales = ensureSuitScale();
+    SUITS.forEach(s=>{ console.assert(scales[s]>0, 'Scale missing for '+s); });
+    const off = document.createElement('canvas'); off.width=off.height=64; const c=off.getContext('2d');
+    drawCard(c,2,2,40,56,'A','\u2663');
+    const counts = { 'A':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10 };
+    Object.keys(counts).forEach(k=>{ console.assert(PipLayouts[k].length===counts[k], `Rank ${k} should have ${counts[k]} pips`); });
+    SUITS.forEach((s,i)=>{ drawSuit(c, 5+i*9, 58, 8, s, '#000'); });
+    const rad = Object.fromEntries(SUITS.map(s=>[s,measureSuitRadius(s)]));
+    const maxR = Math.max(...Object.values(rad));
+    const minR = Math.min(...Object.values(rad));
+    console.assert((maxR-minR)/maxR < 0.1, 'Suits should share the same circumscribed size after scaling.');
+    console.info('Self-tests passed.', scales);
+  }catch(e){ console.error('Self-tests failed:', e); }
+})();
+window.CardCanvas = { drawCard, drawBack, RANKS, SUITS };
+</script>
+</body>
+</html>
