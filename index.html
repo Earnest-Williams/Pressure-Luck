@@ -447,8 +447,8 @@
 
     function addLog(s){ state.log.unshift(s); state.log = state.log.slice(0,50); }
 
-    function hazardCounts(){
-      return state.hazardTokens.reduce((acc, token)=>{
+    function hazardCounts(tokens=state.hazardTokens){
+      return tokens.reduce((acc, token)=>{
         const key = token.kind || 'unknown';
         acc[key] = (acc[key] || 0) + 1;
         return acc;
@@ -460,20 +460,28 @@
         case 'ember': return 'Ember';
         case 'scorch': return 'Scorch';
         case 'spike': return 'Spike Trap';
+        case 'overheat': return 'Overheat Residue';
         default: return 'Hazard';
       }
     }
 
-    function hazardSummary(){
-      const counts = hazardCounts();
+    function hazardSummary(tokens=state.hazardTokens){
+      const counts = hazardCounts(tokens);
       const parts = Object.entries(counts).map(([kind,count])=>`${count} ${hazardLabel(kind)}${count>1?'s':''}`);
       return parts.length ? parts.join(', ') : 'none';
     }
 
-    function clearHazards(reason){
+    function clearHazards(reason, options={}){
       if(state.hazardTokens.length===0) return;
-      const summary = hazardSummary();
-      state.hazardTokens = [];
+      const { preserveKinds=[] } = options;
+      const toRemove = preserveKinds.length
+        ? state.hazardTokens.filter(token=>!preserveKinds.includes(token.kind))
+        : state.hazardTokens.slice();
+      if(toRemove.length===0) return;
+      const summary = hazardSummary(toRemove);
+      state.hazardTokens = preserveKinds.length
+        ? state.hazardTokens.filter(token=>preserveKinds.includes(token.kind))
+        : [];
       addLog(`${reason} Cleared hazards (${summary}).`);
     }
 
@@ -496,6 +504,13 @@
         token.bustBonus = (token.bustBonus||0) + 0.1;
         token.trap = true;
         addLog('A spike trap is set! Bust odds increased by 10% until you bank.');
+      } else if(token.kind==='overheat'){
+        const risk = clamp(token.risk ?? 0, 0, 0.95);
+        const bonus = clamp(risk, 0.02, 0.5);
+        token.bustBonus = (token.bustBonus||0) + bonus;
+        const label = token.label ? ` (${token.label})` : '';
+        const heatText = token.heat ? ` at ×${tf(token.heat,2)}` : '';
+        addLog(`Residual overheat hazard${label}${heatText}. Bust odds +${tf(bonus*100,1)}%.`);
       }
     }
 
@@ -505,6 +520,18 @@
       state.hazardTokens.push(token);
       resolveHazardToken(token);
       return token;
+    }
+
+    function addOverheatHazards(overheatInfo, heatRaw){
+      if(!overheatInfo || !Number.isFinite(overheatInfo.risk) || overheatInfo.risk<=0){ return 0; }
+      const payload = {
+        risk: overheatInfo.risk,
+        heat: heatRaw,
+        label: overheatInfo.stageLabel || null,
+        stage: overheatInfo.stageIndex ?? null,
+      };
+      addHazardToken('overheat', payload);
+      return 1;
     }
 
     function addHazardsForStreak(nextStreak){
@@ -540,7 +567,8 @@
         const riskPct = tf(d.overheat.risk*100,1);
         const lossText = lost>0 ? ` Lost pot of ${fmtInt(lost)}.` : '';
         addLog(`Overheated! Forced cooldown at ×${tf(d.heatRaw,2)} (${riskPct}% risk).${lossText}${fromAuto?' [auto-roll]':''}`);
-        clearHazards('Overheat forced a cooldown.');
+        clearHazards('Overheat forced a cooldown.', { preserveKinds: ['overheat'] });
+        addOverheatHazards(d.overheat, d.heatRaw);
         render();
         return;
       }
