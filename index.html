@@ -48,6 +48,7 @@
     .log{list-style:none;margin:0;padding:0}
     .log li{font-size:14px;color:var(--muted2);margin:4px 0}
     input[type=number]{width:110px;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,.35);color:var(--text);padding:6px}
+    #abTarget.pending{border-style:dashed;color:var(--muted2);background:rgba(255,255,255,.04)}
   </style>
 </head>
 <body>
@@ -155,7 +156,8 @@
         <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px">
           <div>
             <div style="font-size:14px">Owned: <span id="abOwned" style="font-weight:600">No</span></div>
-            <div style="font-size:14px">Target: <input id="abTarget" type="number" min="1" step="1" value="20" disabled></div>
+            <div style="font-size:14px">Target: <input id="abTarget" type="number" min="1" step="1" value="20"></div>
+            <div id="abPendingHint" class="muted" style="font-size:12px;margin-top:4px;display:none">Effective after purchase</div>
           </div>
           <div class="row">
             <button id="btnBuyAB" class="btn">Buy (<span id="costAB">90</span>)</button>
@@ -298,8 +300,10 @@
 
       document.getElementById('abOwned').textContent = state.autoBankerOwned? 'Yes':'No';
       const abTargetEl = document.getElementById('abTarget');
-      abTargetEl.disabled = !state.autoBankerOwned;
       abTargetEl.value = state.autoBankerTarget;
+      abTargetEl.classList.toggle('pending', !state.autoBankerOwned);
+      const abPendingHint = document.getElementById('abPendingHint');
+      if(abPendingHint){ abPendingHint.style.display = state.autoBankerOwned ? 'none' : 'block'; }
       document.getElementById('costAB').textContent = d.priceAB;
       document.getElementById('btnToggleAB').textContent = state.autoBankerActive? 'Disable':'Enable';
       document.getElementById('btnToggleAR').textContent = state.autoRollerActive? 'Stop':'Start';
@@ -397,7 +401,18 @@
 
     function toggleAR(){ if(state.autoRollerLevel<=0){ addLog('Buy the Auto Roller first.'); render(); return; } state.autoRollerActive = !state.autoRollerActive; addLog(`Auto Roller ${state.autoRollerActive?'started':'stopped'}.`); refreshAutoTimer(); render(); }
 
-    function buyAB(){ const d=derived(); if(state.autoBankerOwned) return; if(state.bank<d.priceAB){ addLog('Insufficient funds for Auto Banker.'); render(); return; } state.bank -= d.priceAB; state.autoBankerOwned=true; bumpAddDiePrice(); addLog(`Bought Auto Banker for ${d.priceAB}.`); render(); }
+    function buyAB(){
+      const d=derived();
+      if(state.autoBankerOwned) return;
+      if(state.bank<d.priceAB){ addLog('Insufficient funds for Auto Banker.'); render(); return; }
+      const target = clamp(state.autoBankerTarget, 1, 1_000_000);
+      state.autoBankerTarget = target;
+      state.bank -= d.priceAB;
+      state.autoBankerOwned=true;
+      bumpAddDiePrice();
+      addLog(`Bought Auto Banker for ${d.priceAB}. Target ${target}.`);
+      render();
+    }
 
     function toggleAB(){ if(!state.autoBankerOwned){ addLog('Buy the Auto Banker first.'); render(); return; } state.autoBankerActive=!state.autoBankerActive; addLog(`Auto Banker ${state.autoBankerActive?'enabled':'disabled'}. Target ${state.autoBankerTarget}.`); render(); }
 
@@ -443,7 +458,14 @@
 
     document.getElementById('btnBuyAB').addEventListener('click', buyAB);
     document.getElementById('btnToggleAB').addEventListener('click', toggleAB);
-    document.getElementById('abTarget').addEventListener('input', (e)=>{ const v = parseInt(e.target.value||'0',10); state.autoBankerTarget = clamp(isNaN(v)?0:v, 1, 1_000_000); render(); });
+    document.getElementById('abTarget').addEventListener('input', (e)=>{
+      const raw = parseInt(e.target.value||'0',10);
+      const next = clamp(Number.isNaN(raw)?0:raw, 1, 1_000_000);
+      state.autoBankerTarget = next;
+      e.target.value = next;
+      if(!state.autoBankerOwned) return;
+      render();
+    });
 
     // Delegation: dice list
     const diceListEl = document.getElementById('diceList');
