@@ -184,6 +184,8 @@
     // ===== Helpers =====
     const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
     const tf = (n, d=2) => (Number.isFinite(n) ? n.toFixed(d) : '—');
+    const nfInt = new Intl.NumberFormat('en-US', {maximumFractionDigits: 0});
+    const fmtInt = (n) => Number.isFinite(n) ? nfInt.format(Math.trunc(n)) : '—';
 
     // Costs & math
     const costAddDie = (k) => Math.round(25 * Math.pow(1.55, Math.max(0, k-1)));
@@ -262,11 +264,11 @@
     function render(){
       const d = derived();
       // Top panels
-      document.getElementById('bank').textContent = Math.floor(state.bank);
+      document.getElementById('bank').textContent = fmtInt(state.bank);
       document.getElementById('interestRate').textContent = (state.destroyedSides*0.1).toFixed(1);
       document.getElementById('priceScale').textContent = (state.globalPriceScale).toFixed(2);
 
-      document.getElementById('pot').textContent = state.pot;
+      document.getElementById('pot').textContent = fmtInt(state.pot);
       document.getElementById('heatRaw').textContent = tf(d.heatRaw,2);
       document.getElementById('heatPay').textContent = Math.max(1, d.heatPay);
       document.getElementById('streak').textContent = state.streak;
@@ -281,22 +283,22 @@
       // Buttons panel (costs)
       document.getElementById('diceCountNow').textContent = state.dice.length;
       document.getElementById('diceCountNext').textContent = state.dice.length+1;
-      document.getElementById('costDie').textContent = d.priceDie;
+      document.getElementById('costDie').textContent = fmtInt(d.priceDie);
 
       document.getElementById('selSides').textContent = d.selected?.sides ?? 0;
       document.getElementById('selSidesNext').textContent = (d.selected ? d.selected.sides+1 : 0);
-      document.getElementById('costSide').textContent = d.priceSide;
+      document.getElementById('costSide').textContent = fmtInt(d.priceSide);
 
       document.getElementById('selWin').textContent = d.selected?.winningFaces ?? 0;
       document.getElementById('selSides2').textContent = d.selected?.sides ?? 0;
       document.getElementById('selWinNext').textContent = d.selected ? Math.min(d.selected.winningFaces+1, d.selected.sides-1) : 0;
       document.getElementById('selSides3').textContent = d.selected?.sides ?? 0;
-      document.getElementById('costWin').textContent = d.priceWin;
+      document.getElementById('costWin').textContent = fmtInt(d.priceWin);
 
       document.getElementById('arOwned').textContent = state.autoRollerLevel>0? 'Yes':'No';
       document.getElementById('arLevel').textContent = Math.max(0, state.autoRollerLevel);
-      document.getElementById('arInterval').textContent = d.arMs ? `${d.arMs} ms` : '—';
-      document.getElementById('costAR').textContent = d.priceAR;
+      document.getElementById('arInterval').textContent = d.arMs ? `${fmtInt(d.arMs)} ms` : '—';
+      document.getElementById('costAR').textContent = fmtInt(d.priceAR);
 
       document.getElementById('abOwned').textContent = state.autoBankerOwned? 'Yes':'No';
       const abTargetEl = document.getElementById('abTarget');
@@ -304,7 +306,7 @@
       abTargetEl.classList.toggle('pending', !state.autoBankerOwned);
       const abPendingHint = document.getElementById('abPendingHint');
       if(abPendingHint){ abPendingHint.style.display = state.autoBankerOwned ? 'none' : 'block'; }
-      document.getElementById('costAB').textContent = d.priceAB;
+      document.getElementById('costAB').textContent = fmtInt(d.priceAB);
       document.getElementById('btnToggleAB').textContent = state.autoBankerActive? 'Disable':'Enable';
       document.getElementById('btnToggleAR').textContent = state.autoRollerActive? 'Stop':'Start';
 
@@ -359,7 +361,7 @@
       }
       state.lastRoll = res;
       if(successes===0){
-        if(state.pot>0) addLog(`Bust. Lost pot of ${state.pot}.`);
+        if(state.pot>0) addLog(`Bust. Lost pot of ${fmtInt(state.pot)}.`);
         state.pot = 0; state.streak = 0; render(); return;
       }
       const d = derived();
@@ -368,15 +370,15 @@
       const newPot = state.pot + gain;
       if(state.autoBankerOwned && state.autoBankerActive && newPot >= state.autoBankerTarget){
         state.bank += newPot; state.pot = 0; state.streak = 0;
-        addLog(`Auto-banked ${newPot} (target ${state.autoBankerTarget}+).${fromAuto?' [auto-roll]':''}`);
+        addLog(`Auto-banked ${fmtInt(newPot)} (target ${fmtInt(state.autoBankerTarget)}+).${fromAuto?' [auto-roll]':''}`);
       } else {
         state.pot = newPot; state.streak += 1;
-        addLog(`Success: ${successes}/${state.dice.length} wins. +${gain} to pot.${fromAuto?' [auto-roll]':''}`);
+        addLog(`Success: ${successes}/${state.dice.length} wins. +${fmtInt(gain)} to pot.${fromAuto?' [auto-roll]':''}`);
       }
       render();
     }
 
-    function bankNow(){ if(state.pot<=0){ addLog('Nothing to bank.'); render(); return; } state.bank += state.pot; addLog(`Banked ${state.pot}.`); state.pot=0; state.streak=0; render(); }
+    function bankNow(){ if(state.pot<=0){ addLog('Nothing to bank.'); render(); return; } state.bank += state.pot; addLog(`Banked ${fmtInt(state.pot)}.`); state.pot=0; state.streak=0; render(); }
 
     function resetGame(){
       state.bank=0; state.pot=0; state.streak=0; state.dice=[{id:1,sides:2,winningFaces:1}]; state.selectedDieId=1; state.lastRoll=[];
@@ -388,16 +390,16 @@
     function bumpAddDiePrice(){ state.addDieInflation *= 1.18; }
 
     function buyDie(){ const {priceDie}=derived(); if(state.bank<priceDie){ addLog('Insufficient funds for die.'); render(); return; }
-      state.bank -= priceDie; const nextId = (state.dice.reduce((m,d)=>Math.max(m,d.id),0)+1)||1; state.dice.push({id:nextId,sides:2,winningFaces:1}); addLog(`Bought +1 die for ${priceDie}. New die is d2 with 1 winning face.`); render(); }
+      state.bank -= priceDie; const nextId = (state.dice.reduce((m,d)=>Math.max(m,d.id),0)+1)||1; state.dice.push({id:nextId,sides:2,winningFaces:1}); addLog(`Bought +1 die for ${fmtInt(priceDie)}. New die is d2 with 1 winning face.`); render(); }
 
     function buySide(){ const d=derived(); if(!d.selected || !d.canAddSide){ return; } if(state.bank<d.priceSide){ addLog('Insufficient funds for side.'); render(); return; }
-      state.bank -= d.priceSide; state.dice = state.dice.map(x=> x.id===d.selected.id ? {...x, sides:x.sides+1, winningFaces: Math.min(x.winningFaces, x.sides+1)} : x ); bumpAddDiePrice(); addLog(`Die #${d.selected.id}: +1 side for ${d.priceSide}. Now d${d.selected.sides+1}.`); render(); }
+      state.bank -= d.priceSide; state.dice = state.dice.map(x=> x.id===d.selected.id ? {...x, sides:x.sides+1, winningFaces: Math.min(x.winningFaces, x.sides+1)} : x ); bumpAddDiePrice(); addLog(`Die #${d.selected.id}: +1 side for ${fmtInt(d.priceSide)}. Now d${d.selected.sides+1}.`); render(); }
 
     function buyWinningFace(){ const d=derived(); if(!d.selected || !d.canAddWinningFace){ return; } if(state.bank<d.priceWin){ addLog('Insufficient funds for winning face.'); render(); return; }
-      state.bank -= d.priceWin; state.dice = state.dice.map(x=> x.id===d.selected.id ? {...x, winningFaces: Math.min(x.winningFaces+1, x.sides-1)} : x ); bumpAddDiePrice(); addLog(`Die #${d.selected.id}: +1 winning face for ${d.priceWin}. Now ${Math.min(d.selected.winningFaces+1, d.selected.sides-1)}/${d.selected.sides} win.`); render(); }
+      state.bank -= d.priceWin; state.dice = state.dice.map(x=> x.id===d.selected.id ? {...x, winningFaces: Math.min(x.winningFaces+1, x.sides-1)} : x ); bumpAddDiePrice(); addLog(`Die #${d.selected.id}: +1 winning face for ${fmtInt(d.priceWin)}. Now ${Math.min(d.selected.winningFaces+1, d.selected.sides-1)}/${d.selected.sides} win.`); render(); }
 
     function buyOrUpgradeAR(){ const d=derived(); if(state.bank<d.priceAR){ addLog('Insufficient funds for Auto Roller.'); render(); return; }
-      state.bank -= d.priceAR; state.autoRollerLevel = Math.max(1, state.autoRollerLevel+1); bumpAddDiePrice(); addLog(`${state.autoRollerLevel>1?'Upgraded':'Bought'} Auto Roller for ${d.priceAR}.`); refreshAutoTimer(); render(); }
+      state.bank -= d.priceAR; state.autoRollerLevel = Math.max(1, state.autoRollerLevel+1); bumpAddDiePrice(); addLog(`${state.autoRollerLevel>1?'Upgraded':'Bought'} Auto Roller for ${fmtInt(d.priceAR)}.`); refreshAutoTimer(); render(); }
 
     function toggleAR(){ if(state.autoRollerLevel<=0){ addLog('Buy the Auto Roller first.'); render(); return; } state.autoRollerActive = !state.autoRollerActive; addLog(`Auto Roller ${state.autoRollerActive?'started':'stopped'}.`); refreshAutoTimer(); render(); }
 
@@ -410,11 +412,11 @@
       state.bank -= d.priceAB;
       state.autoBankerOwned=true;
       bumpAddDiePrice();
-      addLog(`Bought Auto Banker for ${d.priceAB}. Target ${target}.`);
+      addLog(`Bought Auto Banker for ${fmtInt(d.priceAB)}. Target ${fmtInt(target)}.`);
       render();
     }
 
-    function toggleAB(){ if(!state.autoBankerOwned){ addLog('Buy the Auto Banker first.'); render(); return; } state.autoBankerActive=!state.autoBankerActive; addLog(`Auto Banker ${state.autoBankerActive?'enabled':'disabled'}. Target ${state.autoBankerTarget}.`); render(); }
+    function toggleAB(){ if(!state.autoBankerOwned){ addLog('Buy the Auto Banker first.'); render(); return; } state.autoBankerActive=!state.autoBankerActive; addLog(`Auto Banker ${state.autoBankerActive?'enabled':'disabled'}. Target ${fmtInt(state.autoBankerTarget)}.`); render(); }
 
     function destroyDie(id){ if(!allowDestroy(state.dice.length)){ addLog('Cannot destroy your last die.'); render(); return; } const die = state.dice.find(d=>d.id===id); if(!die){ return; }
       state.globalPriceScale = Math.max(0.0001, state.globalPriceScale * 0.5); state.destroyedSides += die.sides; state.dice = state.dice.filter(d=>d.id!==id); if(state.selectedDieId===id){ state.selectedDieId = state.dice.length ? state.dice[0].id : -1; } state.armedDestroyId = null; addLog(`Destroyed die #${id} (d${die.sides}). Prices halved; interest +${(die.sides*0.1).toFixed(1)}%/tick.`); render(); }
