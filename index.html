@@ -67,7 +67,7 @@
       <div class="card">
         <div class="title">Pot (at risk)</div>
         <div id="pot" style="font-size:32px;font-weight:700">0</div>
-        <div class="muted" style="font-size:12px;margin-top:6px">Heat ×<span id="heatRaw">1.00</span> • Payout ×<span id="heatPay">1</span> • Streak <span id="streak">0</span></div>
+        <div class="muted" style="font-size:12px;margin-top:6px">Heat ×<span id="heatRaw">1.00</span> • Payout ×<span id="heatPay">1</span> • Streak <span id="streak">0</span> • Overheat <span id="overheatRisk">0.0</span>%<span id="overheatStage" class="pill" style="margin-left:6px;display:none"></span><span id="overheatNext" class="muted" style="margin-left:6px;display:none">next ×<span id="overheatNextValue">0.0</span></span></div>
       </div>
       <div class="card">
         <div class="title">Current Setup</div>
@@ -176,6 +176,7 @@
       Rules: If at least one die shows a winning face, you add to the pot and may roll again or bank; if none win, you bust and lose the pot.
         Add a Die starts at 25 and scales ×1.55 for each die already owned; any non‑die purchase increases future Add‑a‑Die price by +18% (multiplicative).
       Starting heat adds +0.1 per side above 2 on each die; streak adds +0.05 per success. Only whole‑number heat levels (×2, ×3, …) multiply payout.
+      Crossing ×2.5, ×3.5, ×4.5 heat (and beyond) adds escalating forced cooldown chances that automatically bust the pot at +5%, +8%, +12% per tier.
       Base per‑win payout increases by +0.1 for each additional die. Destroying a die halves all current buy prices and adds +0.1%/tick interest per side of the destroyed die.
     </p>
   </div>
@@ -198,6 +199,45 @@
 
     const computeStartingHeat = (dice) => 1 + 0.1 * dice.reduce((a,d)=>a + Math.max(0, d.sides-2), 0);
     const payoutFromDiceCount = (nDice) => 1 + 0.1 * Math.max(0, nDice-1);
+
+    const OVERHEAT_STAGES = [
+      { threshold: 2.5, addRisk: 0.05, label: 'Warm' },
+      { threshold: 3.5, addRisk: 0.08, label: 'Hot' },
+      { threshold: 4.5, addRisk: 0.12, label: 'Critical' },
+    ];
+
+    function computeOverheat(heatRaw){
+      let accumulatedRisk = 0;
+      let stageIndex = -1;
+      let nextThreshold = null;
+      for(let i=0;i<OVERHEAT_STAGES.length;i++){
+        const stage = OVERHEAT_STAGES[i];
+        if(heatRaw >= stage.threshold){
+          accumulatedRisk = Math.min(0.95, accumulatedRisk + stage.addRisk);
+          stageIndex = i;
+        } else {
+          nextThreshold = stage.threshold;
+          break;
+        }
+      }
+      const lastStage = OVERHEAT_STAGES[OVERHEAT_STAGES.length-1];
+      if(stageIndex === OVERHEAT_STAGES.length-1){
+        const extraHeat = Math.max(0, heatRaw - lastStage.threshold);
+        const extraSteps = Math.floor(extraHeat);
+        if(extraSteps>0){
+          const extraRisk = Math.min(0.95 - accumulatedRisk, extraSteps * lastStage.addRisk);
+          if(extraRisk>0){ accumulatedRisk = Math.min(0.95, accumulatedRisk + extraRisk); }
+          stageIndex += extraSteps;
+        }
+        nextThreshold = lastStage.threshold + extraSteps + 1;
+      }
+      const stageLabel = (stageIndex>=0)
+        ? (stageIndex < OVERHEAT_STAGES.length
+            ? OVERHEAT_STAGES[stageIndex].label
+            : `${OVERHEAT_STAGES[OVERHEAT_STAGES.length-1].label}+${stageIndex-OVERHEAT_STAGES.length+1}`)
+        : null;
+      return {risk: accumulatedRisk, stageIndex, stageLabel, nextThreshold};
+    }
     const allowDestroy = (nDice) => nDice > 1;
 
     // SVG icon (coin for n<=2, n-gon otherwise)
@@ -245,6 +285,7 @@
       const startingHeat = computeStartingHeat(state.dice);
       const heatRaw = startingHeat + 0.05 * state.streak;
       const heatPay = Math.floor(heatRaw);
+      const overheat = computeOverheat(heatRaw);
       const bustProb = state.dice.reduce((acc,d)=>acc * (1 - d.winningFaces/d.sides), 1);
       const expectedSuccesses = state.dice.reduce((acc,d)=>acc + d.winningFaces/d.sides, 0);
 
@@ -257,7 +298,24 @@
       const priceAR = Math.max(1, Math.round(costAutoRoller(state.autoRollerLevel) * state.globalPriceScale));
       const priceAB = !state.autoBankerOwned ? Math.max(1, Math.round(costAutoBanker() * state.globalPriceScale)) : 0;
       const arMs = autoIntervalMs(state.autoRollerLevel);
-      return {payoutPerSuccess, startingHeat, heatRaw, heatPay, bustProb, expectedSuccesses, priceDie, selected, canAddSide, canAddWinningFace, priceSide, priceWin, priceAR, priceAB, arMs};
+      return {
+        payoutPerSuccess,
+        startingHeat,
+        heatRaw,
+        heatPay,
+        overheat,
+        bustProb,
+        expectedSuccesses,
+        priceDie,
+        selected,
+        canAddSide,
+        canAddWinningFace,
+        priceSide,
+        priceWin,
+        priceAR,
+        priceAB,
+        arMs
+      };
     }
 
     // ===== Render =====
@@ -272,6 +330,27 @@
       document.getElementById('heatRaw').textContent = tf(d.heatRaw,2);
       document.getElementById('heatPay').textContent = Math.max(1, d.heatPay);
       document.getElementById('streak').textContent = state.streak;
+      const overheatRiskEl = document.getElementById('overheatRisk');
+      if(overheatRiskEl){ overheatRiskEl.textContent = tf(d.overheat.risk*100,1); }
+      const ohStage = document.getElementById('overheatStage');
+      if(ohStage){
+        if(d.overheat.stageLabel){
+          ohStage.textContent = d.overheat.stageLabel;
+          ohStage.style.display = 'inline';
+        } else {
+          ohStage.style.display = 'none';
+        }
+      }
+      const ohNext = document.getElementById('overheatNext');
+      const ohNextValue = document.getElementById('overheatNextValue');
+      if(ohNext && ohNextValue){
+        if(d.overheat.nextThreshold){
+          ohNextValue.textContent = tf(d.overheat.nextThreshold,1);
+          ohNext.style.display = 'inline';
+        } else {
+          ohNext.style.display = 'none';
+        }
+      }
 
       document.getElementById('diceCount').textContent = state.dice.length;
       document.getElementById('selectedStats').textContent = `#${d.selected?.id ?? '?'} — d${d.selected?.sides ?? '?'} , ${d.selected?.winningFaces ?? '?'} winning`;
@@ -368,6 +447,17 @@
       const payMult = Math.max(1, d.heatPay);
       const gain = Math.round(successes * d.payoutPerSuccess * payMult);
       const newPot = state.pot + gain;
+      const forcedBust = d.overheat.risk>0 && Math.random() < d.overheat.risk;
+      if(forcedBust){
+        const lost = newPot;
+        state.pot = 0;
+        state.streak = 0;
+        const riskPct = tf(d.overheat.risk*100,1);
+        const lossText = lost>0 ? ` Lost pot of ${fmtInt(lost)}.` : '';
+        addLog(`Overheated! Forced cooldown at ×${tf(d.heatRaw,2)} (${riskPct}% risk).${lossText}${fromAuto?' [auto-roll]':''}`);
+        render();
+        return;
+      }
       if(state.autoBankerOwned && state.autoBankerActive && newPot >= state.autoBankerTarget){
         state.bank += newPot; state.pot = 0; state.streak = 0;
         addLog(`Auto-banked ${fmtInt(newPot)} (target ${fmtInt(state.autoBankerTarget)}+).${fromAuto?' [auto-roll]':''}`);
@@ -501,6 +591,8 @@
       const heat = computeStartingHeat([{id:1,sides:3,winningFaces:1},{id:2,sides:5,winningFaces:1}]);
       console.assert(Math.abs(heat-1.4)<1e-9,'d3+d5 heat 1.4');
       console.assert(autoIntervalMs(3) < autoIntervalMs(1),'AR speeds up');
+      const oh = computeOverheat(3.6);
+      console.assert(oh.risk>0 && oh.stageLabel==='Hot','overheat stages escalate');
     }catch(_){} })();
 
     // Boot
