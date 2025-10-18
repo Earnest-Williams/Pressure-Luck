@@ -19,36 +19,46 @@
       --shadow:0 10px 15px -3px rgba(0,0,0,.2),0 4px 6px -4px rgba(0,0,0,.2);
     }
     html,body{height:100%;}
-    body{margin:0;color:var(--text);background:linear-gradient(to bottom,var(--bg1),var(--bg2));font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans","Apple Color Emoji","Segoe UI Emoji";line-height:1.6;}
-    .container{max-width:1100px;margin:0 auto;padding:24px;}
+    body{margin:0;color:var(--text);background:linear-gradient(135deg,var(--bg1),var(--bg2));background-size:200% 200%;animation:gradientShift 18s ease infinite;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans","Apple Color Emoji","Segoe UI Emoji";line-height:1.8;}
+    @keyframes gradientShift{0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}}
+    .container{max-width:1100px;margin:0 auto;padding:24px;line-height:1.8;}
     h1{font-size:22px;margin:0;font-weight:600;letter-spacing:.2px}
     .row{display:flex;gap:12px;flex-wrap:wrap;}
     .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
     @media (max-width:900px){.grid-3{grid-template-columns:1fr}}
     .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
     @media (max-width:900px){.grid-2{grid-template-columns:1fr}}
-    .card{border:1px solid var(--border);background:rgba(255,255,255,.05);border-radius:16px;padding:16px;box-shadow:var(--shadow)}
+    .card{position:relative;overflow:hidden;border:1px solid var(--border);background:rgba(255,255,255,.05);border-radius:16px;padding:16px;box-shadow:var(--shadow);transition:transform .35s ease,box-shadow .35s ease,border-color .35s ease;}
+    .card::after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,rgba(52,211,153,.25),rgba(16,185,129,0));transform:translateX(-100%);transition:transform .6s ease;pointer-events:none;}
+    .card:hover{transform:translateY(-6px) scale(1.01);box-shadow:0 20px 30px -15px rgba(15,23,42,.65);border-color:rgba(16,185,129,.45);}
+    .card:hover::after{transform:translateX(100%);}
     .card .title{color:var(--muted2);text-transform:uppercase;letter-spacing:.08em;font-size:12px;margin-bottom:8px}
-    .btn{border:1px solid var(--border);border-radius:14px;padding:10px 14px;background:transparent;color:var(--text);cursor:pointer}
-    .btn:hover{background:rgba(255,255,255,.06)}
+    .btn{border:1px solid var(--border);border-radius:14px;padding:10px 14px;background:transparent;color:var(--text);cursor:pointer;transition:transform .25s ease,box-shadow .25s ease,background .25s ease;}
+    .btn:hover{background:rgba(255,255,255,.08);transform:translateY(-1px);box-shadow:0 10px 15px -12px rgba(16,185,129,.65);}
+    .btn:focus-visible{outline:2px solid var(--highlight);outline-offset:2px;}
     .btn[disabled]{opacity:.5;cursor:not-allowed}
-    .btn-primary{background:var(--accent);border-color:var(--accent);color:#0f172a;font-weight:600}
-    .btn-primary:hover{filter:brightness(1.05)}
+    .btn-primary{background:var(--accent);border-color:var(--accent);color:#0f172a;font-weight:600;box-shadow:0 12px 25px -15px rgba(16,185,129,.9);}
+    .btn-primary:hover{filter:brightness(1.05);box-shadow:0 18px 30px -12px rgba(16,185,129,.85);}
     .btn-warn{border-color:var(--danger);color:#ffe4e6}
     .kbd{border:1px solid var(--border);border-radius:6px;padding:2px 6px}
     .pill{display:inline-block;border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-size:12px}
-    .muted{color:var(--muted2)}
+    .muted{color:var(--muted2);line-height:1.85;}
+    p{line-height:1.85;}
     .dice-list{display:flex;flex-wrap:wrap;gap:12px}
-    .die-tile{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:12px;padding:10px 12px 10px 10px}
-    .die-tile.selected{border-color:var(--highlight);background:rgba(16,185,129,.12)}
+    .die-tile{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:12px;padding:10px 12px 10px 10px;transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease;}
+    .die-tile:hover{transform:translateY(-4px);border-color:rgba(52,211,153,.6);box-shadow:0 16px 30px -20px rgba(15,23,42,.9);}
+    .die-tile.selected{border-color:var(--highlight);background:rgba(16,185,129,.12);box-shadow:0 14px 24px -18px rgba(52,211,153,.55);}
     .destroy{display:inline-block;border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-size:12px}
     .destroy.active{border-color:#fecdd3;background:rgba(244,63,94,.2);color:#fee2e2}
     .destroy.disabled{opacity:.4;pointer-events:none}
     svg{display:block}
     .log{list-style:none;margin:0;padding:0}
-    .log li{font-size:14px;color:var(--muted2);margin:4px 0}
+    .log li{font-size:14px;color:var(--muted2);margin:6px 0;line-height:1.9;opacity:0;animation:fadeInUp .45s ease forwards;}
     input[type=number]{width:110px;border:1px solid var(--border);border-radius:8px;background:rgba(0,0,0,.35);color:var(--text);padding:6px}
     #abTarget.pending{border-style:dashed;color:var(--muted2);background:rgba(255,255,255,.04)}
+    .pulse{animation:pulseGlow .8s ease;}
+    @keyframes pulseGlow{0%{box-shadow:0 0 0 0 rgba(16,185,129,.65);}70%{box-shadow:0 0 0 12px rgba(16,185,129,0);}100%{box-shadow:0 0 0 0 rgba(16,185,129,0);}}
+    @keyframes fadeInUp{0%{opacity:0;transform:translateY(6px);}100%{opacity:1;transform:translateY(0);}}
   </style>
 </head>
 <body>
@@ -188,6 +198,22 @@
     const nfInt = new Intl.NumberFormat('en-US', {maximumFractionDigits: 0});
     const fmtInt = (n) => Number.isFinite(n) ? nfInt.format(Math.trunc(n)) : '—';
 
+    const makeChangeHighlighter = () => {
+      const cache = new Map();
+      return (id, value) => {
+        const prev = cache.get(id);
+        if(prev === value){ return; }
+        cache.set(id, value);
+        const el = document.getElementById(id);
+        if(!el){ return; }
+        el.classList.remove('pulse');
+        void el.offsetWidth;
+        el.classList.add('pulse');
+        el.addEventListener('animationend', () => el.classList.remove('pulse'), { once: true });
+      };
+    };
+    const highlightOnChange = makeChangeHighlighter();
+
     // Costs & math
     const costAddDie = (k) => Math.round(25 * Math.pow(1.55, Math.max(0, k-1)));
     const costAddSideFor = (sides) => Math.round(12 + Math.pow(sides + 1, 1.45));
@@ -326,14 +352,28 @@
     function render(){
       const d = derived();
       // Top panels
-      document.getElementById('bank').textContent = fmtInt(state.bank);
-      document.getElementById('interestRate').textContent = (state.destroyedSides*0.1).toFixed(1);
-      document.getElementById('priceScale').textContent = (state.globalPriceScale).toFixed(2);
+      const bankText = fmtInt(state.bank);
+      const interestText = (state.destroyedSides*0.1).toFixed(1);
+      const priceScaleText = (state.globalPriceScale).toFixed(2);
+      document.getElementById('bank').textContent = bankText;
+      document.getElementById('interestRate').textContent = interestText;
+      document.getElementById('priceScale').textContent = priceScaleText;
+      highlightOnChange('bank', bankText);
+      highlightOnChange('interestRate', interestText);
+      highlightOnChange('priceScale', priceScaleText);
 
-      document.getElementById('pot').textContent = fmtInt(state.pot);
-      document.getElementById('heatRaw').textContent = tf(d.heatRaw,2);
-      document.getElementById('heatPay').textContent = Math.max(1, d.heatPay);
-      document.getElementById('streak').textContent = state.streak;
+      const potText = fmtInt(state.pot);
+      const heatRawText = tf(d.heatRaw,2);
+      const heatPayText = String(Math.max(1, d.heatPay));
+      const streakText = String(state.streak);
+      document.getElementById('pot').textContent = potText;
+      document.getElementById('heatRaw').textContent = heatRawText;
+      document.getElementById('heatPay').textContent = heatPayText;
+      document.getElementById('streak').textContent = streakText;
+      highlightOnChange('pot', potText);
+      highlightOnChange('heatRaw', heatRawText);
+      highlightOnChange('heatPay', heatPayText);
+      highlightOnChange('streak', streakText);
       const overheatRiskEl = document.getElementById('overheatRisk');
       if(overheatRiskEl){ overheatRiskEl.textContent = tf(d.overheat.risk*100,1); }
       const ohStage = document.getElementById('overheatStage');
@@ -369,40 +409,84 @@
         }
       }
 
-      document.getElementById('diceCount').textContent = state.dice.length;
+      const diceCountText = String(state.dice.length);
+      document.getElementById('diceCount').textContent = diceCountText;
       document.getElementById('selectedStats').textContent = `#${d.selected?.id ?? '?'} — d${d.selected?.sides ?? '?'} , ${d.selected?.winningFaces ?? '?'} winning`;
-      document.getElementById('baseHeat').textContent = tf(d.startingHeat,2);
-      document.getElementById('perWin').textContent = tf(d.payoutPerSuccess,2);
-      document.getElementById('bustPct').textContent = tf(d.bustProb*100,2);
-      document.getElementById('expSucc').textContent = tf(d.expectedSuccesses,2);
+      const baseHeatText = tf(d.startingHeat,2);
+      const perWinText = tf(d.payoutPerSuccess,2);
+      const bustPctText = tf(d.bustProb*100,2);
+      const expSuccText = tf(d.expectedSuccesses,2);
+      document.getElementById('baseHeat').textContent = baseHeatText;
+      document.getElementById('perWin').textContent = perWinText;
+      document.getElementById('bustPct').textContent = bustPctText;
+      document.getElementById('expSucc').textContent = expSuccText;
+      highlightOnChange('diceCount', diceCountText);
+      highlightOnChange('baseHeat', baseHeatText);
+      highlightOnChange('perWin', perWinText);
+      highlightOnChange('bustPct', bustPctText);
+      highlightOnChange('expSucc', expSuccText);
 
       // Buttons panel (costs)
-      document.getElementById('diceCountNow').textContent = state.dice.length;
-      document.getElementById('diceCountNext').textContent = state.dice.length+1;
-      document.getElementById('costDie').textContent = fmtInt(d.priceDie);
+      const diceCountNowText = String(state.dice.length);
+      const diceCountNextText = String(state.dice.length+1);
+      const costDieText = fmtInt(d.priceDie);
+      document.getElementById('diceCountNow').textContent = diceCountNowText;
+      document.getElementById('diceCountNext').textContent = diceCountNextText;
+      document.getElementById('costDie').textContent = costDieText;
+      highlightOnChange('diceCountNow', diceCountNowText);
+      highlightOnChange('diceCountNext', diceCountNextText);
+      highlightOnChange('costDie', costDieText);
 
-      document.getElementById('selSides').textContent = d.selected?.sides ?? 0;
-      document.getElementById('selSidesNext').textContent = (d.selected ? d.selected.sides+1 : 0);
-      document.getElementById('costSide').textContent = fmtInt(d.priceSide);
+      const selSidesText = String(d.selected?.sides ?? 0);
+      const selSidesNextText = String(d.selected ? d.selected.sides+1 : 0);
+      const costSideText = fmtInt(d.priceSide);
+      document.getElementById('selSides').textContent = selSidesText;
+      document.getElementById('selSidesNext').textContent = selSidesNextText;
+      document.getElementById('costSide').textContent = costSideText;
+      highlightOnChange('selSides', selSidesText);
+      highlightOnChange('selSidesNext', selSidesNextText);
+      highlightOnChange('costSide', costSideText);
 
-      document.getElementById('selWin').textContent = d.selected?.winningFaces ?? 0;
-      document.getElementById('selSides2').textContent = d.selected?.sides ?? 0;
-      document.getElementById('selWinNext').textContent = d.selected ? Math.min(d.selected.winningFaces+1, d.selected.sides-1) : 0;
-      document.getElementById('selSides3').textContent = d.selected?.sides ?? 0;
-      document.getElementById('costWin').textContent = fmtInt(d.priceWin);
+      const selWinText = String(d.selected?.winningFaces ?? 0);
+      const selSides2Text = String(d.selected?.sides ?? 0);
+      const selWinNextText = String(d.selected ? Math.min(d.selected.winningFaces+1, d.selected.sides-1) : 0);
+      const selSides3Text = String(d.selected?.sides ?? 0);
+      const costWinText = fmtInt(d.priceWin);
+      document.getElementById('selWin').textContent = selWinText;
+      document.getElementById('selSides2').textContent = selSides2Text;
+      document.getElementById('selWinNext').textContent = selWinNextText;
+      document.getElementById('selSides3').textContent = selSides3Text;
+      document.getElementById('costWin').textContent = costWinText;
+      highlightOnChange('selWin', selWinText);
+      highlightOnChange('selSides2', selSides2Text);
+      highlightOnChange('selWinNext', selWinNextText);
+      highlightOnChange('selSides3', selSides3Text);
+      highlightOnChange('costWin', costWinText);
 
-      document.getElementById('arOwned').textContent = state.autoRollerLevel>0? 'Yes':'No';
-      document.getElementById('arLevel').textContent = Math.max(0, state.autoRollerLevel);
-      document.getElementById('arInterval').textContent = d.arMs ? `${fmtInt(d.arMs)} ms` : '—';
-      document.getElementById('costAR').textContent = fmtInt(d.priceAR);
+      const arOwnedText = state.autoRollerLevel>0? 'Yes':'No';
+      const arLevelText = String(Math.max(0, state.autoRollerLevel));
+      const arIntervalText = d.arMs ? `${fmtInt(d.arMs)} ms` : '—';
+      const costARText = fmtInt(d.priceAR);
+      document.getElementById('arOwned').textContent = arOwnedText;
+      document.getElementById('arLevel').textContent = arLevelText;
+      document.getElementById('arInterval').textContent = arIntervalText;
+      document.getElementById('costAR').textContent = costARText;
+      highlightOnChange('arOwned', arOwnedText);
+      highlightOnChange('arLevel', arLevelText);
+      highlightOnChange('arInterval', arIntervalText);
+      highlightOnChange('costAR', costARText);
 
-      document.getElementById('abOwned').textContent = state.autoBankerOwned? 'Yes':'No';
+      const abOwnedText = state.autoBankerOwned? 'Yes':'No';
       const abTargetEl = document.getElementById('abTarget');
       abTargetEl.value = state.autoBankerTarget;
       abTargetEl.classList.toggle('pending', !state.autoBankerOwned);
       const abPendingHint = document.getElementById('abPendingHint');
       if(abPendingHint){ abPendingHint.style.display = state.autoBankerOwned ? 'none' : 'block'; }
-      document.getElementById('costAB').textContent = fmtInt(d.priceAB);
+      const costABText = fmtInt(d.priceAB);
+      document.getElementById('abOwned').textContent = abOwnedText;
+      document.getElementById('costAB').textContent = costABText;
+      highlightOnChange('abOwned', abOwnedText);
+      highlightOnChange('costAB', costABText);
       document.getElementById('btnToggleAB').textContent = state.autoBankerActive? 'Disable':'Enable';
       document.getElementById('btnToggleAR').textContent = state.autoRollerActive? 'Stop':'Start';
 
@@ -441,7 +525,7 @@
       list.innerHTML = tiles;
 
       // Log
-      const logHtml = state.log.slice(0,20).map(s=>`<li>• ${s}</li>`).join('');
+      const logHtml = state.log.slice(0,20).map((s,i)=>`<li style="animation-delay:${i*0.05}s">• ${s}</li>`).join('');
       document.getElementById('log').innerHTML = logHtml;
     }
 
