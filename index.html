@@ -215,7 +215,8 @@
     const highlightOnChange = makeChangeHighlighter();
 
     // Costs & math
-    const costAddDie = (k) => Math.round(25 * Math.pow(1.55, Math.max(0, k-1)));
+    // Always round up so each additional die costs at least the scaled base amount.
+    const costAddDie = (k) => Math.ceil(25 * Math.pow(1.55, Math.max(0, k-1)));
     const costAddSideFor = (sides) => Math.round(12 + Math.pow(sides + 1, 1.45));
     const costAddWinningFaceFor = (w) => Math.round(18 * Math.pow(1.45, Math.max(0, w - 1)));
     const costAutoRoller = (level) => Math.round(80 * Math.pow(1.5, Math.max(0, level)));
